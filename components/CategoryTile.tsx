@@ -1,5 +1,8 @@
+"use client";
+
 import { Beef, CakeSlice, Fish, Salad, Soup, UtensilsCrossed, Wheat, type LucideIcon } from "lucide-react";
 import type { Category } from "@/lib/schema";
+import { useCategoryPhoto } from "./useCategoryPhoto";
 
 const CATEGORY_STYLE: Record<Category, { icon: LucideIcon; gradient: string }> = {
   pasta: { icon: Wheat, gradient: "from-amber-500 to-amber-800" },
@@ -17,13 +20,26 @@ export type CategoryTileProps = {
 };
 
 /**
- * #7: gradient + icon per category, no photo assets (see issue #27 for real
- * photography - keep this as the fallback whenever a category has no photo).
+ * #7 / #27: a Gemini-generated photo per category when one's available
+ * (fetched + cached via useCategoryPhoto), falling back to the gradient +
+ * lucide icon whenever there's no key, the call fails, or it's still
+ * loading. No photographer attribution needed - these are generated, not
+ * sourced stock photography.
  */
 export default function CategoryTile({ category, size = "md" }: CategoryTileProps) {
+  const photo = useCategoryPhoto(category);
   const { icon: Icon, gradient } = CATEGORY_STYLE[category];
   const dims = size === "sm" ? "size-10" : "size-14";
   const iconSize = size === "sm" ? 18 : 24;
+
+  if (photo) {
+    return (
+      <div className={`${dims} rounded-card shrink-0 overflow-hidden`}>
+        {/* eslint-disable-next-line @next/next/no-img-element -- data URI from our own /api/category-photo, nothing for next/image to optimise */}
+        <img src={photo.url} alt="" className="h-full w-full object-cover" />
+      </div>
+    );
+  }
 
   return (
     <div
