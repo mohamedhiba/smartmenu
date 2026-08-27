@@ -7,7 +7,15 @@ A mobile-first React web app - open it on a phone, no install.
 
 **Live: https://smartmenu-two-ruddy.vercel.app**
 
-<img width="1536" height="1024" alt="SmartMenu design mock" src="https://github.com/user-attachments/assets/56ed0ce9-97ea-4a71-a17a-7c87a03e7d78" />
+| Scan | Preferences | Processing |
+|---|---|---|
+| ![Scan](docs/screenshots/01-scan.png) | ![Preferences](docs/screenshots/02-preferences.png) | ![Processing](docs/screenshots/04-processing.png) |
+
+| Smart Menu | Dish details |
+|---|---|
+| ![Smart Menu](docs/screenshots/05-menu.png) | ![Dish details](docs/screenshots/06-dish-details.png) |
+
+*Real output: a photographed Argentine menu, read in Spanish, ranked for keto.*
 
 ![CI](https://github.com/mohamedhiba/smartmenu/actions/workflows/ci.yml/badge.svg)
 
@@ -59,4 +67,9 @@ docs/           plan, conventions, demo script
 ## Contributing
 
 Read [`docs/CONVENTIONS.md`](docs/CONVENTIONS.md) first - file ownership, branch
-names and PR rules. The build plan is in [`docs/PLAN.md`](docs/PLAN.md).
+names and PR rules.
+
+- [`docs/PLAN.md`](docs/PLAN.md) - what we are building and why
+- [`docs/WALKTHROUGH.md`](docs/WALKTHROUGH.md) - the build explained for someone who did not write it
+- [`docs/PITCH.md`](docs/PITCH.md) - the three-slide pitch and speaker notes
+- [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md) - the 90-second run, and what to do if it breaks
