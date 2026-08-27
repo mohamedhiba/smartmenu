@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { DEMO_MENU } from "@/lib/fixtures";
-import { analyzeMenu } from "@/lib/llm";
+import { AllKeysExhaustedError, analyzeMenu } from "@/lib/llm";
 import { AnalyzeRequest, type AnalyzeError } from "@/lib/schema";
 
 export const runtime = "nodejs";
@@ -52,6 +52,10 @@ export async function POST(request: Request) {
     return NextResponse.json(menu);
   } catch (error) {
     // TODO(#18): timeout, repair retry, item cap. TODO(#19): OpenAI fallback.
+    if (error instanceof AllKeysExhaustedError) {
+      console.error("[analyze]", error.message);
+      return fail("rate_limited", "Too many requests. Try again shortly.", 429);
+    }
     console.error("[analyze] failed:", error);
     return fail("upstream_failed", "Could not read that menu.", 502);
   }

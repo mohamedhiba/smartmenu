@@ -96,20 +96,90 @@ Also return:
 Read only what is on the menu. Do not invent dishes that are not there.`;
 }
 
+/** Every key we can try, in order. Never log these. */
+function geminiKeys(): string[] {
+  const raw = [
+    process.env.GEMINI_API_KEY,
+    process.env.GEMINI_API_KEY_2,
+    process.env.GEMINI_API_KEY_3,
+  ]
+    // A single var may also hold a comma-separated list, which is the easiest
+    // thing to paste into one Vercel environment variable.
+    .flatMap((value) => (value ?? "").split(","))
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  return [...new Set(raw)];
+}
+
+/**
+ * Where to start in the key list. Rotating the starting point spreads load
+ * instead of hammering key 1 until it 429s, which matters because the free
+ * tier is roughly 10 requests per minute per key and three of us are testing.
+ */
+let cursor = 0;
+
+/** True for failures another key might survive: quota, rate limit, 5xx. */
+function isKeyExhausted(error: unknown): boolean {
+  const status = (error as { status?: number })?.status;
+  if (status === 429 || status === 500 || status === 503) return true;
+
+  const message = String((error as Error)?.message ?? "").toLowerCase();
+  return (
+    message.includes("429") ||
+    message.includes("resource_exhausted") ||
+    message.includes("quota") ||
+    message.includes("rate limit") ||
+    message.includes("overloaded") ||
+    message.includes("unavailable")
+  );
+}
+
+/** Thrown when every key is rate-limited. The route maps this to a 429. */
+export class AllKeysExhaustedError extends Error {
+  constructor(readonly keyCount: number) {
+    super(`All ${keyCount} Gemini key(s) are rate-limited or unavailable`);
+    this.name = "AllKeysExhaustedError";
+  }
+}
+
 /**
  * The one call that replaces OCR, structuring, translation and nutrition lookup.
  *
- * Throws on transport or parse failure. Timeout, retry and provider fallback
- * are deliberately not here yet - they land in #18 and #19.
+ * Tries each configured key in turn, rotating past any that is rate-limited.
+ * Timeout, repair retry and the OpenAI fallback land in #18 and #19.
  */
 export async function analyzeMenu(
   imageBase64: string,
   mimeType: string,
   prefs: Prefs,
 ): Promise<AnalyzedMenu> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error("GEMINI_API_KEY is not set");
+  const keys = geminiKeys();
+  if (keys.length === 0) throw new Error("No GEMINI_API_KEY is set");
 
+  const start = cursor++ % keys.length;
+
+  for (let attempt = 0; attempt < keys.length; attempt++) {
+    const index = (start + attempt) % keys.length;
+    try {
+      return await callGemini(keys[index], imageBase64, mimeType, prefs);
+    } catch (error) {
+      if (!isKeyExhausted(error)) throw error;
+      console.warn(
+        `[analyze] key ${index + 1}/${keys.length} exhausted, rotating`,
+      );
+    }
+  }
+
+  throw new AllKeysExhaustedError(keys.length);
+}
+
+async function callGemini(
+  apiKey: string,
+  imageBase64: string,
+  mimeType: string,
+  prefs: Prefs,
+): Promise<AnalyzedMenu> {
   const ai = new GoogleGenAI({ apiKey });
 
   const response = await ai.models.generateContent({
