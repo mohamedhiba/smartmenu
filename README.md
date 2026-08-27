@@ -16,7 +16,7 @@ estimation in a single pass, returning strict JSON. A deterministic scoring
 function then ranks each dish against the diet you picked.
 
 ```
-photo -> downscale in browser -> /api/analyze -> gemini-2.5-flash (JSON schema)
+photo -> downscale in browser -> /api/analyze -> gemini-3.6-flash (JSON schema)
       -> zod validate -> scoreDish() -> ranked menu
 ```
 
@@ -36,7 +36,7 @@ Needs Node 22 or 24.
 ## Stack
 
 Next.js 16 (App Router) - TypeScript - Tailwind v4 - zod - zustand -
-Gemini `gemini-2.5-flash` with an OpenAI `gpt-4o` fallback - deployed on Vercel.
+Gemini `gemini-3.6-flash` with an OpenAI `gpt-4o` fallback - deployed on Vercel.
 
 ## Layout
 

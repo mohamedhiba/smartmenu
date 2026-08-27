@@ -37,7 +37,7 @@ UI, share, tests beyond the CI build.
 ## Stack
 
 - Next.js 16 (App Router, TypeScript), Tailwind v4, Vercel
-- **Gemini `gemini-2.5-flash`** via `@google/genai` - vision + `responseSchema`
+- **Gemini `gemini-3.6-flash`** via `@google/genai` - vision + `responseSchema`
 - **OpenAI `gpt-4o`** as fallback when Gemini errors or rate-limits
 - `zod` for the shared contract, `zustand` for client state, `lucide-react` for icons
 - Category art is a gradient + icon tile, not a photo library
@@ -74,7 +74,7 @@ UI, share, tests beyond the CI build.
 |---|---|
 | A phone photo is 3-5MB; base64 adds ~33%; Vercel caps request bodies at 4.5MB | `lib/image.ts` downscales to <=1024px JPEG q0.72 in the browser *before* upload (#9). Also cuts latency and token cost. |
 | Model returns malformed JSON | `responseSchema` + zod validate + one repair retry + fixtures fallback (#18) |
-| Gemini free tier is ~10 req/min and three of us are testing | Everyone uses their own key locally; OpenAI fallback on 429 (#19) |
+| the Gemini free tier rate-limits per key and three of us are testing | Everyone uses their own key locally; OpenAI fallback on 429 (#19) |
 | API dies during the demo | `?demo=1` returns fixtures instantly - built in the bootstrap commit, not at hour 5 |
 | Wi-Fi dies during the demo | `?demo=1` plus a screen recording taken at H5 |
 | iOS camera in the browser | `<input type="file" accept="image/*" capture="environment">` works everywhere; verified at H3.5 |
