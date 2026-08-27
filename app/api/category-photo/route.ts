@@ -87,6 +87,15 @@ export async function GET(request: Request) {
   const committed = staticPhoto(category);
   if (committed) return NextResponse.json({ url: committed });
 
+  // Generation is opt-in. On Vercel the image model rejects an API key with
+  // 401 "Expected OAuth 2 access token", so every menu render fired seven
+  // failing function calls. Nothing rendered differently - the gradient tile
+  // was always going to win - so this just stops paying for the attempt.
+  // Run `npm run photos` locally and commit public/dishes instead.
+  if (process.env.ENABLE_PHOTO_GENERATION !== "1") {
+    return NextResponse.json(null);
+  }
+
   const cached = cache.get(category);
   if (cached) return NextResponse.json(cached);
 

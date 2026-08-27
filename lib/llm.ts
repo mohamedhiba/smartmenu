@@ -4,10 +4,17 @@ import { z } from "zod";
 import { AnalyzedMenu, MenuItem, type Prefs } from "./schema";
 
 /**
- * Overridable by env. gemini-2.5-flash was retired for new API keys mid-build,
- * so being able to move models without a code change is not hypothetical.
+ * Primary model. Overridable by env - gemini-2.5-flash was retired for new API
+ * keys mid-build, so being able to move models without a code change is not
+ * hypothetical.
+ *
+ * flash-lite is the primary because it is measurably better here, not because
+ * it is cheaper. On the hardest real menu we have (39 items, laminated, glare)
+ * it returns all 20 capped items in 8-10s, where gemini-3.6-flash took 14-25s
+ * and was blowing the 40s budget in production once a rate-limited key forced a
+ * rotation. Same items, same language, same allergen flags.
  */
-export const GEMINI_MODEL = process.env.GEMINI_MODEL ?? "gemini-3.6-flash";
+export const GEMINI_MODEL = process.env.GEMINI_MODEL ?? "gemini-3.1-flash-lite";
 
 /**
  * Second Gemini model, tried before crossing to another provider.
@@ -18,7 +25,7 @@ export const GEMINI_MODEL = process.env.GEMINI_MODEL ?? "gemini-3.6-flash";
  * little when we are already short of budget.
  */
 export const GEMINI_FALLBACK_MODEL =
-  process.env.GEMINI_FALLBACK_MODEL ?? "gemini-3.1-flash-lite";
+  process.env.GEMINI_FALLBACK_MODEL ?? "gemini-3.6-flash";
 
 /**
  * What we ask the model for: the contract minus `id`.
