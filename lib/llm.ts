@@ -143,34 +143,133 @@ export class AllKeysExhaustedError extends Error {
   }
 }
 
+/** Thrown when we run out of time. The route maps this to a 504. */
+export class AnalyzeTimeoutError extends Error {
+  constructor(readonly budgetMs: number) {
+    super(`Gave up after ${budgetMs}ms`);
+    this.name = "AnalyzeTimeoutError";
+  }
+}
+
+/** Thrown when the model answered but the answer does not fit the contract. */
+export class InvalidMenuDataError extends Error {
+  constructor(readonly detail: string) {
+    super(`Model returned data that does not match the contract: ${detail}`);
+    this.name = "InvalidMenuDataError";
+  }
+}
+
+/**
+ * Total wall-clock budget for one analyze request.
+ *
+ * Vercel would let us run to 60s, but a judge staring at a spinner gives up
+ * long before that. Failing at 25s and showing something is better than
+ * succeeding at 50s.
+ */
+export const ANALYZE_BUDGET_MS = 25_000;
+
+/**
+ * Below this there is no point starting another attempt - a successful read
+ * takes about 9-12s, so anything less is almost certainly wasted wall clock.
+ */
+const MIN_ATTEMPT_MS = 8_000;
+
+/**
+ * Gemini rejects a manually set deadline under 10s outright
+ * ("Minimum allowed deadline is 10s"), so we only pass httpOptions.timeout when
+ * we have that much left. The AbortController still bounds shorter windows.
+ */
+const MIN_SERVER_DEADLINE_MS = 10_000;
+
+/** A two-page menu should not blow up the payload or the UI. */
+export const MAX_ITEMS = 20;
+
+/** Appended on the one repair attempt, after the model broke the contract. */
+const REPAIR_HINT = `
+
+Your previous response did not match the required schema. Return ONLY valid JSON
+matching the schema exactly. Every field is required. Do not add commentary.`;
+
+function isAbort(error: unknown): boolean {
+  const name = (error as Error)?.name ?? "";
+  const message = String((error as Error)?.message ?? "").toLowerCase();
+  return (
+    name === "AbortError" ||
+    name === "TimeoutError" ||
+    message.includes("aborted") ||
+    message.includes("timed out") ||
+    message.includes("timeout")
+  );
+}
+
 /**
  * The one call that replaces OCR, structuring, translation and nutrition lookup.
  *
- * Tries each configured key in turn, rotating past any that is rate-limited.
- * Timeout, repair retry and the OpenAI fallback land in #18 and #19.
+ * Everything happens inside one wall-clock budget. Within it we may rotate past
+ * a rate-limited key and spend one attempt repairing a response that broke the
+ * contract - but we never run past the deadline, because a spinner that never
+ * resolves is worse than an error.
+ *
+ * The OpenAI cross-provider fallback lands in #19.
  */
 export async function analyzeMenu(
   imageBase64: string,
   mimeType: string,
   prefs: Prefs,
+  budgetMs: number = ANALYZE_BUDGET_MS,
 ): Promise<AnalyzedMenu> {
   const keys = geminiKeys();
   if (keys.length === 0) throw new Error("No GEMINI_API_KEY is set");
 
+  const deadline = Date.now() + budgetMs;
   const start = cursor++ % keys.length;
 
-  for (let attempt = 0; attempt < keys.length; attempt++) {
+  let repairUsed = false;
+  let lastInvalid: InvalidMenuDataError | null = null;
+
+  // One extra pass beyond the key count leaves room for the repair attempt.
+  for (let attempt = 0; attempt <= keys.length; attempt++) {
+    const remaining = deadline - Date.now();
+    if (remaining < MIN_ATTEMPT_MS) {
+      if (lastInvalid) throw lastInvalid;
+      throw new AnalyzeTimeoutError(budgetMs);
+    }
+
     const index = (start + attempt) % keys.length;
     try {
-      return await callGemini(keys[index], imageBase64, mimeType, prefs);
-    } catch (error) {
-      if (!isKeyExhausted(error)) throw error;
-      console.warn(
-        `[analyze] key ${index + 1}/${keys.length} exhausted, rotating`,
+      return await callGemini(
+        keys[index],
+        imageBase64,
+        mimeType,
+        prefs,
+        remaining,
+        repairUsed,
       );
+    } catch (error) {
+      if (isAbort(error)) throw new AnalyzeTimeoutError(budgetMs);
+
+      if (error instanceof InvalidMenuDataError) {
+        // The model answered, so its key is fine. Spend one attempt telling it
+        // to try again properly; a second failure is not worth the wall clock.
+        if (repairUsed) throw error;
+        repairUsed = true;
+        lastInvalid = error;
+        console.warn("[analyze] contract violation, attempting one repair");
+        continue;
+      }
+
+      if (isKeyExhausted(error)) {
+        console.warn(
+          `[analyze] key ${index + 1}/${keys.length} exhausted, rotating`,
+        );
+        continue;
+      }
+
+      throw error;
     }
   }
 
+  if (lastInvalid) throw lastInvalid;
   throw new AllKeysExhaustedError(keys.length);
 }
 
@@ -179,34 +278,60 @@ async function callGemini(
   imageBase64: string,
   mimeType: string,
   prefs: Prefs,
+  remainingMs: number,
+  repair: boolean,
 ): Promise<AnalyzedMenu> {
   const ai = new GoogleGenAI({ apiKey });
 
-  const response = await ai.models.generateContent({
-    model: GEMINI_MODEL,
-    contents: [
-      {
-        role: "user",
-        parts: [
-          { inlineData: { mimeType, data: imageBase64 } },
-          { text: buildPrompt(prefs) },
-        ],
+  // Two belts: the SDK's own HTTP timeout, and an abort signal so we stop
+  // waiting even if the socket stays open.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), remainingMs);
+
+  let response;
+  try {
+    response = await ai.models.generateContent({
+      model: GEMINI_MODEL,
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { inlineData: { mimeType, data: imageBase64 } },
+            { text: buildPrompt(prefs) + (repair ? REPAIR_HINT : "") },
+          ],
+        },
+      ],
+      config: {
+        responseMimeType: "application/json",
+        responseJsonSchema: MENU_RESPONSE_SCHEMA,
+        // The menu is in the image; there is little to reason about at length.
+        // Default thinking costs ~21s on a printed menu, LOW gets the same answer
+        // in ~9s. Gemini 3.x replaced thinkingBudget with thinkingLevel.
+        thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
+        abortSignal: controller.signal,
+        ...(remainingMs >= MIN_SERVER_DEADLINE_MS
+          ? { httpOptions: { timeout: remainingMs } }
+          : {}),
       },
-    ],
-    config: {
-      responseMimeType: "application/json",
-      responseJsonSchema: MENU_RESPONSE_SCHEMA,
-      // The menu is in the image; there is little to reason about at length.
-      // Default thinking costs ~21s on a printed menu, LOW gets the same answer
-      // in ~9s. Gemini 3.x replaced thinkingBudget with thinkingLevel.
-      thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
-    },
-  });
+    });
+  } finally {
+    clearTimeout(timer);
+  }
 
   const text = response.text;
-  if (!text) throw new Error("Gemini returned an empty response");
+  if (!text) throw new InvalidMenuDataError("empty response");
 
-  const draft = AnalyzedMenuDraft.parse(JSON.parse(text));
+  let draft;
+  try {
+    draft = AnalyzedMenuDraft.parse(JSON.parse(text));
+  } catch (error) {
+    throw new InvalidMenuDataError(
+      error instanceof Error ? error.message.slice(0, 200) : "unparseable",
+    );
+  }
+
+  // Cap before validating so a huge menu cannot blow up the payload.
+  draft.items = draft.items.slice(0, MAX_ITEMS);
 
   return AnalyzedMenu.parse({
     ...draft,
