@@ -2,64 +2,34 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import ScanScreen from "@/components/screens/ScanScreen";
 import { downscaleToBase64 } from "@/lib/image";
 import { useMenuStore } from "@/lib/store";
 
+/**
+ * Scan. The page owns the data and the routing; ScanScreen owns everything
+ * visible. Neither file needs to know how the other works - the seam is
+ * ScanScreenProps in components/types.ts.
+ */
 export default function ScanPage() {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | undefined>(undefined);
 
-  const handleFile = async (file: File | null | undefined) => {
-    if (!file) return;
+  const handleImage = async (file: File) => {
     setBusy(true);
-    setError(null);
-
+    setError(undefined);
     try {
       const { base64, mimeType } = await downscaleToBase64(file);
       useMenuStore.getState().setImage({ base64, mimeType });
       router.push("/preferences");
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Unable to process this image.");
-    } finally {
+      setError(
+        caught instanceof Error ? caught.message : "Unable to read that image.",
+      );
       setBusy(false);
     }
   };
 
-  return (
-    <main className="flex flex-1 flex-col justify-center gap-8 py-12">
-      <div className="space-y-3">
-        <h1 className="text-3xl font-semibold tracking-tight">SmartMenu</h1>
-        <p className="text-muted text-balance">
-          Photograph a menu in any language. Get it translated, scored and
-          ranked for your diet.
-        </p>
-      </div>
-
-      <label
-        className="bg-accent text-accent-ink rounded-card px-5 py-4 text-center font-medium"
-        style={{ display: "block", cursor: busy ? "not-allowed" : "pointer", opacity: busy ? 0.7 : 1 }}
-      >
-        <input
-          type="file"
-          accept="image/*"
-          capture="environment"
-          disabled={busy}
-          onChange={(event) => handleFile(event.target.files?.[0])}
-          style={{ display: "none" }}
-        />
-        {busy ? "Processing photo…" : "Scan a menu"}
-      </label>
-
-      {error ? (
-        <p className="text-red-400 text-sm" role="alert">
-          {error}
-        </p>
-      ) : null}
-
-      <p className="text-muted text-xs">
-        Demo-safe: the app downscales the upload before it can hit the Vercel size cap.
-      </p>
-    </main>
-  );
+  return <ScanScreen onImage={handleImage} busy={busy} error={error} />;
 }
