@@ -44,3 +44,11 @@ export type DishDetailsScreenProps = {
   dish: Scored;
   onBack: () => void;
 };
+
+/**
+ * #28. Self-contained: it fetches /api/ask-dish itself rather than taking
+ * onAsk/answer/busy props, since no page owns dish-details state yet.
+ */
+export type AskAboutDishProps = {
+  dish: Scored;
+};
