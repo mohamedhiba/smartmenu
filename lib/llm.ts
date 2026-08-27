@@ -3,7 +3,22 @@ import OpenAI from "openai";
 import { z } from "zod";
 import { AnalyzedMenu, MenuItem, type Prefs } from "./schema";
 
-export const GEMINI_MODEL = "gemini-3.6-flash";
+/**
+ * Overridable by env. gemini-2.5-flash was retired for new API keys mid-build,
+ * so being able to move models without a code change is not hypothetical.
+ */
+export const GEMINI_MODEL = process.env.GEMINI_MODEL ?? "gemini-3.6-flash";
+
+/**
+ * Second Gemini model, tried before crossing to another provider.
+ *
+ * Rate limits are per model per project, so a different model is a different
+ * bucket - which makes this the fallback most likely to actually fire on the
+ * free tier. It is also faster than the primary (~7s vs ~11s), so it costs
+ * little when we are already short of budget.
+ */
+export const GEMINI_FALLBACK_MODEL =
+  process.env.GEMINI_FALLBACK_MODEL ?? "gemini-3.1-flash-lite";
 
 /**
  * What we ask the model for: the contract minus `id`.
@@ -129,6 +144,9 @@ Also return:
 - isMenu: true if this image really is a food or drink menu.
 - rejectionReason: null when isMenu is true. When the image is not a menu, set isMenu to false, return an empty items array, and put one short friendly sentence here describing what you actually see, such as "This looks like a photo of a person, not a menu."
 
+Return at most ${MAX_ITEMS} dishes. If the menu lists more than that, return the
+first ${MAX_ITEMS} in the order they appear and stop.
+
 Read only what is on the menu. Do not invent dishes that are not there.`;
 }
 
@@ -168,6 +186,26 @@ function isKeyExhausted(error: unknown): boolean {
     message.includes("rate limit") ||
     message.includes("overloaded") ||
     message.includes("unavailable")
+  );
+}
+
+/**
+ * True when the model itself is gone or unusable for this key.
+ *
+ * Not hypothetical: Google retired gemini-2.5-flash for new API keys during
+ * this build and it started returning 404. A retired model is exactly when the
+ * second model should be tried, so this counts as worth falling back on - but
+ * an obviously wrong request does not.
+ */
+function isModelUnavailable(error: unknown): boolean {
+  const status = (error as { status?: number })?.status;
+  if (status === 404) return true;
+
+  const message = String((error as Error)?.message ?? "").toLowerCase();
+  return (
+    message.includes("is not found") ||
+    message.includes("no longer available") ||
+    message.includes("not supported for generatecontent")
   );
 }
 
@@ -228,10 +266,16 @@ matching the schema exactly. Every field is required. Do not add commentary.`;
 
 function isAbort(error: unknown): boolean {
   const name = (error as Error)?.name ?? "";
+  const status = (error as { status?: number })?.status;
   const message = String((error as Error)?.message ?? "").toLowerCase();
   return (
     name === "AbortError" ||
     name === "TimeoutError" ||
+    // Gemini reports its own server-side deadline as a 504 DEADLINE_EXCEEDED.
+    // That is a timeout, not a generic upstream failure, and the difference
+    // matters: the UI tells the user to retry rather than to change the photo.
+    status === 504 ||
+    message.includes("deadline") ||
     message.includes("aborted") ||
     message.includes("timed out") ||
     message.includes("timeout")
@@ -257,25 +301,57 @@ export async function analyzeMenu(
   const deadline = Date.now() + budgetMs;
 
   try {
-    return await analyzeWithGemini(imageBase64, mimeType, prefs, deadline);
+    return await analyzeWithGemini(
+      imageBase64,
+      mimeType,
+      prefs,
+      deadline,
+      GEMINI_MODEL,
+    );
   } catch (error) {
-    const remaining = deadline - Date.now();
-
-    // Only worth crossing to another provider if Gemini failed for a reason
-    // OpenAI might not share, and we still have time to try.
+    // Only fall back when the failure is one a different model or provider
+    // might not share. A blown deadline is not: there is no time left, and a
+    // second attempt only makes the wait worse.
     const worthFallback =
       error instanceof AllKeysExhaustedError ||
       error instanceof InvalidMenuDataError ||
-      (!(error instanceof AnalyzeTimeoutError) && isKeyExhausted(error));
+      (!(error instanceof AnalyzeTimeoutError) &&
+        (isKeyExhausted(error) || isModelUnavailable(error)));
 
-    if (!openAIKey() || !worthFallback || remaining < MIN_ATTEMPT_MS) throw error;
+    if (!worthFallback) throw error;
 
-    console.warn("[analyze] Gemini failed, falling back to OpenAI");
+    // Tier 2: a different Gemini model. Rate limits are per model per project,
+    // so this is a different bucket and the tier most likely to actually fire.
+    if (deadline - Date.now() >= MIN_ATTEMPT_MS) {
+      try {
+        console.warn(`[analyze] ${GEMINI_MODEL} failed, trying ${GEMINI_FALLBACK_MODEL}`);
+        return await analyzeWithGemini(
+          imageBase64,
+          mimeType,
+          prefs,
+          deadline,
+          GEMINI_FALLBACK_MODEL,
+        );
+      } catch (secondModelError) {
+        if (isAbort(secondModelError)) throw new AnalyzeTimeoutError(budgetMs);
+        console.warn("[analyze] second Gemini model also failed");
+      }
+    }
+
+    // Tier 3: another provider entirely.
+    if (!openAIKey() || deadline - Date.now() < MIN_ATTEMPT_MS) throw error;
+
+    console.warn("[analyze] falling back to OpenAI");
     try {
-      return await callOpenAI(imageBase64, mimeType, prefs, remaining);
+      return await analyzeWithOpenAI(
+        imageBase64,
+        mimeType,
+        prefs,
+        deadline - Date.now(),
+      );
     } catch (fallbackError) {
       if (isAbort(fallbackError)) throw new AnalyzeTimeoutError(budgetMs);
-      // Report the original Gemini failure - it is the more informative one.
+      // Report the original failure - it is the more informative one.
       console.error("[analyze] OpenAI fallback also failed:", fallbackError);
       throw error;
     }
@@ -287,6 +363,7 @@ async function analyzeWithGemini(
   mimeType: string,
   prefs: Prefs,
   deadline: number,
+  model: string,
 ): Promise<AnalyzedMenu> {
   const keys = geminiKeys();
   if (keys.length === 0) throw new Error("No GEMINI_API_KEY is set");
@@ -314,6 +391,7 @@ async function analyzeWithGemini(
         prefs,
         remaining,
         repairUsed,
+        model,
       );
     } catch (error) {
       if (isAbort(error)) throw new AnalyzeTimeoutError(budgetMs);
@@ -330,7 +408,7 @@ async function analyzeWithGemini(
 
       if (isKeyExhausted(error)) {
         console.warn(
-          `[analyze] key ${index + 1}/${keys.length} exhausted, rotating`,
+              `[analyze] ${model} key ${index + 1}/${keys.length} exhausted, rotating`,
         );
         continue;
       }
@@ -356,8 +434,11 @@ export const OPENAI_MODEL = process.env.OPENAI_MODEL ?? "gpt-4o";
  *
  * Only reached when every Gemini key is spent or Gemini keeps breaking the
  * contract, which is exactly when a second opinion is worth the wall clock.
+ *
+ * Exported so the fallback can be exercised on its own - otherwise the only way
+ * to test it is to wait for Gemini to actually fail.
  */
-async function callOpenAI(
+export async function analyzeWithOpenAI(
   imageBase64: string,
   mimeType: string,
   prefs: Prefs,
@@ -422,6 +503,7 @@ async function callGemini(
   prefs: Prefs,
   remainingMs: number,
   repair: boolean,
+  model: string,
 ): Promise<AnalyzedMenu> {
   const ai = new GoogleGenAI({ apiKey });
 
@@ -433,7 +515,7 @@ async function callGemini(
   let response;
   try {
     response = await ai.models.generateContent({
-      model: GEMINI_MODEL,
+      model,
       contents: [
         {
           role: "user",
