@@ -41,7 +41,22 @@ export default function MenuItemPage() {
   const dish = useDishById(id);
 
   if (!dish) {
-    return <main>Dish not found.</main>;
+    // Reachable by deep link, or after sessionStorage is cleared. It used to
+    // render a bare unstyled string with no way out of the app.
+    return (
+      <main style={{ display: "flex", flexDirection: "column", gap: 16, justifyContent: "center", minHeight: "70vh" }}>
+        <h1 style={{ margin: 0, fontSize: 26 }}>We lost that dish</h1>
+        <p style={{ margin: 0, color: "#8b93a3", lineHeight: 1.5 }}>
+          It is not in the menu you are looking at. Scan a menu to start again.
+        </p>
+        <Link
+          href="/menu"
+          style={{ background: "#14b8a6", color: "#04231f", borderRadius: 16, padding: "16px 20px", textAlign: "center", fontWeight: 600, textDecoration: "none" }}
+        >
+          Back to the menu
+        </Link>
+      </main>
+    );
   }
 
   return (
@@ -55,7 +70,7 @@ export default function MenuItemPage() {
       }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <Link href="/menu" style={{ color: "#8b93a3", textDecoration: "none" }}>
+        <Link href="/menu" style={{ color: "#8b93a3", textDecoration: "none", display: "inline-flex", alignItems: "center", minHeight: 44, paddingRight: 12 }}>
           ← Back
         </Link>
         <span style={{ color: "#8b93a3", fontSize: 12, letterSpacing: 1.2, textTransform: "uppercase" }}>

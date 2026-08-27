@@ -37,7 +37,7 @@ export default function PreferencesPage() {
       }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <Link href="/" style={{ color: "#8b93a3", textDecoration: "none" }}>
+        <Link href="/" style={{ color: "#8b93a3", textDecoration: "none", display: "inline-flex", alignItems: "center", minHeight: 44, paddingRight: 12 }}>
           ← Back
         </Link>
         <span style={{ color: "#8b93a3", fontSize: 12, letterSpacing: 1.2, textTransform: "uppercase" }}>
