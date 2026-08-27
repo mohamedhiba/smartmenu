@@ -38,6 +38,13 @@ export type SmartMenuScreenProps = {
   items: Scored[];
   onSelect: (id: string) => void;
   onRescan: () => void;
+  /**
+   * True when what is on screen is the built-in sample menu rather than the
+   * user's photo - either nothing was scanned, or the model failed twice and
+   * the API degraded to fixtures. It has to be visible: showing someone else's
+   * menu as though it were theirs is worse than showing an error.
+   */
+  isSampleData?: boolean;
 };
 
 export type DishDetailsScreenProps = {

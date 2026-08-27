@@ -1,6 +1,9 @@
 # Demo script - 90 seconds
 
-Fill in the blanks at H5. Rehearse twice before presenting.
+Rehearse twice before presenting.
+
+**Live URL:** https://smartmenu-two-ruddy.vercel.app
+**Insurance:** add `?demo=1` to any URL - answers from fixtures in under half a second.
 
 **Backups, in order:** live URL -> same URL with `?demo=1` -> screen recording
 on someone's phone. Take the recording at H5, not at H5:55.
@@ -8,7 +11,11 @@ on someone's phone. Take the recording at H5, not at H5:55.
 ## Setup before you walk up
 
 - [ ] Phone on the venue Wi-Fi *and* mobile data as backup
-- [ ] Vercel URL already open in a tab, logged-in and warm (hit it once - avoids a cold start)
+- [ ] URL already open and **warm** - load it once first. A cold start adds a few
+      seconds, and a real menu already takes 10-20s
+- [ ] Confirm no "Vercel Security Checkpoint" screen appears (issue #45)
+- [ ] Use `smartmenu-two-ruddy`, **not** `smartmenu-iota` - iota returns the
+      sample Italian menu for any photo (issue #46)
 - [ ] Printed Italian menu in hand
 - [ ] Screen mirroring tested
 - [ ] Screen recording saved locally
@@ -24,7 +31,8 @@ on someone's phone. Take the recording at H5, not at H5:55.
 
 1. **Scan** - "One photo of the menu." Take it live.
 2. **Preferences** - "I'm keto, high protein, no nuts." Tap three chips.
-3. **Processing** - let the stages show. Do not talk over them.
+3. **Processing** - let the stages show. Do not talk over them. A real menu takes
+   **10-20 seconds**; the stages are there to fill it, so let them.
 4. **Smart Menu** - "Eight dishes, ranked. Green is recommended, amber is fine,
    red I should skip." Point at the sea bass at the top and the carbonara at the bottom.
 5. **Dish details** - tap the top dish. "46g protein, 12g carbs, and here is
