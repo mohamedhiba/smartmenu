@@ -43,6 +43,22 @@ Needs Node 22 or 24.
 **No API key? It still runs.** Every screen renders from `lib/fixtures.ts`, and
 `POST /api/analyze?demo=1` returns the demo menu instantly.
 
+## Category photos
+
+Dish tiles show a generated photo per category when one exists, and a gradient +
+icon when it does not. The fallback is the default state and looks deliberate, so
+this is optional.
+
+```bash
+npm run photos          # writes public/dishes/*.png, skips what exists
+git add public/dishes
+```
+
+Image generation sits on its own per-day free-tier quota, separate from the text
+quota. If every key is spent the script says so and changes nothing - re-run
+after the daily reset. A committed file always wins over generating at runtime,
+so the Smart Menu screen never waits on an image.
+
 ## Stack
 
 Next.js 16 (App Router) - TypeScript - Tailwind v4 - zod - zustand -
