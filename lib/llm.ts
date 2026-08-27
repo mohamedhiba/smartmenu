@@ -1,4 +1,5 @@
 import { GoogleGenAI, ThinkingLevel } from "@google/genai";
+import OpenAI from "openai";
 import { z } from "zod";
 import { AnalyzedMenu, MenuItem, type Prefs } from "./schema";
 
@@ -44,6 +45,41 @@ function toModelSchema(node: unknown): unknown {
 
 export const MENU_RESPONSE_SCHEMA = toModelSchema(
   z.toJSONSchema(AnalyzedMenuDraft, { io: "input" }),
+);
+
+/**
+ * OpenAI's strict structured-output mode accepts an even smaller subset than
+ * Gemini: numeric and length constraints are rejected outright. `confidence`
+ * carries minimum/maximum, so the fallback needs its own copy with those gone.
+ */
+const UNSUPPORTED_BY_OPENAI = new Set([
+  "minimum",
+  "maximum",
+  "exclusiveMinimum",
+  "exclusiveMaximum",
+  "minLength",
+  "maxLength",
+  "minItems",
+  "maxItems",
+  "pattern",
+  "format",
+  "multipleOf",
+]);
+
+function stripStrictUnsupported(node: unknown): unknown {
+  if (Array.isArray(node)) return node.map(stripStrictUnsupported);
+  if (node === null || typeof node !== "object") return node;
+
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
+    if (UNSUPPORTED_BY_OPENAI.has(key)) continue;
+    out[key] = stripStrictUnsupported(value);
+  }
+  return out;
+}
+
+export const OPENAI_RESPONSE_SCHEMA = stripStrictUnsupported(
+  MENU_RESPONSE_SCHEMA,
 );
 
 /** "Bruschetta al Pomodoro" -> "bruschetta-al-pomodoro" */
@@ -218,10 +254,44 @@ export async function analyzeMenu(
   prefs: Prefs,
   budgetMs: number = ANALYZE_BUDGET_MS,
 ): Promise<AnalyzedMenu> {
+  const deadline = Date.now() + budgetMs;
+
+  try {
+    return await analyzeWithGemini(imageBase64, mimeType, prefs, deadline);
+  } catch (error) {
+    const remaining = deadline - Date.now();
+
+    // Only worth crossing to another provider if Gemini failed for a reason
+    // OpenAI might not share, and we still have time to try.
+    const worthFallback =
+      error instanceof AllKeysExhaustedError ||
+      error instanceof InvalidMenuDataError ||
+      (!(error instanceof AnalyzeTimeoutError) && isKeyExhausted(error));
+
+    if (!openAIKey() || !worthFallback || remaining < MIN_ATTEMPT_MS) throw error;
+
+    console.warn("[analyze] Gemini failed, falling back to OpenAI");
+    try {
+      return await callOpenAI(imageBase64, mimeType, prefs, remaining);
+    } catch (fallbackError) {
+      if (isAbort(fallbackError)) throw new AnalyzeTimeoutError(budgetMs);
+      // Report the original Gemini failure - it is the more informative one.
+      console.error("[analyze] OpenAI fallback also failed:", fallbackError);
+      throw error;
+    }
+  }
+}
+
+async function analyzeWithGemini(
+  imageBase64: string,
+  mimeType: string,
+  prefs: Prefs,
+  deadline: number,
+): Promise<AnalyzedMenu> {
   const keys = geminiKeys();
   if (keys.length === 0) throw new Error("No GEMINI_API_KEY is set");
 
-  const deadline = Date.now() + budgetMs;
+  const budgetMs = deadline - Date.now();
   const start = cursor++ % keys.length;
 
   let repairUsed = false;
@@ -271,6 +341,78 @@ export async function analyzeMenu(
 
   if (lastInvalid) throw lastInvalid;
   throw new AllKeysExhaustedError(keys.length);
+}
+
+function openAIKey(): string | null {
+  return process.env.OPENAI_API_KEY?.trim() || null;
+}
+
+/** Overridable so we can move models without a code change mid-hackathon. */
+export const OPENAI_MODEL = process.env.OPENAI_MODEL ?? "gpt-4o";
+
+/**
+ * The cross-provider fallback. Same signature, same contract out - nothing
+ * outside this file should know two providers exist.
+ *
+ * Only reached when every Gemini key is spent or Gemini keeps breaking the
+ * contract, which is exactly when a second opinion is worth the wall clock.
+ */
+async function callOpenAI(
+  imageBase64: string,
+  mimeType: string,
+  prefs: Prefs,
+  remainingMs: number,
+): Promise<AnalyzedMenu> {
+  const apiKey = openAIKey();
+  if (!apiKey) throw new Error("OPENAI_API_KEY is not set");
+
+  const client = new OpenAI({ apiKey, timeout: remainingMs, maxRetries: 0 });
+
+  const completion = await client.chat.completions.create(
+    {
+      model: OPENAI_MODEL,
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: buildPrompt(prefs) },
+            {
+              type: "image_url",
+              image_url: { url: `data:${mimeType};base64,${imageBase64}` },
+            },
+          ],
+        },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "analyzed_menu",
+          strict: true,
+          schema: OPENAI_RESPONSE_SCHEMA as Record<string, unknown>,
+        },
+      },
+    },
+    { timeout: remainingMs },
+  );
+
+  const text = completion.choices[0]?.message?.content;
+  if (!text) throw new InvalidMenuDataError("empty response from OpenAI");
+
+  let draft;
+  try {
+    draft = AnalyzedMenuDraft.parse(JSON.parse(text));
+  } catch (error) {
+    throw new InvalidMenuDataError(
+      error instanceof Error ? error.message.slice(0, 200) : "unparseable",
+    );
+  }
+
+  draft.items = draft.items.slice(0, MAX_ITEMS);
+
+  return AnalyzedMenu.parse({
+    ...draft,
+    items: withStableIds(draft.items),
+  });
 }
 
 async function callGemini(
