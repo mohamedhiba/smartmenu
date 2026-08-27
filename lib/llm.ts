@@ -236,11 +236,17 @@ export class InvalidMenuDataError extends Error {
 /**
  * Total wall-clock budget for one analyze request.
  *
- * Vercel would let us run to 60s, but a judge staring at a spinner gives up
- * long before that. Failing at 25s and showing something is better than
- * succeeding at 50s.
+ * This was 25s, which measurement showed was simply too tight: a 20-item menu
+ * takes 20-25s to generate and was 504ing on roughly two runs in three. The
+ * work genuinely takes that long, so failing it early just turned a slow
+ * success into a failure.
+ *
+ * 40s leaves headroom for a large menu plus one fallback attempt, and still
+ * sits inside Vercel's 60s function ceiling. A small menu is unaffected - those
+ * come back in 9-15s. The processing screen narrates the wait so it does not
+ * read as a hang.
  */
-export const ANALYZE_BUDGET_MS = 25_000;
+export const ANALYZE_BUDGET_MS = 40_000;
 
 /**
  * Below this there is no point starting another attempt - a successful read
@@ -258,11 +264,60 @@ const MIN_SERVER_DEADLINE_MS = 10_000;
 /** A two-page menu should not blow up the payload or the UI. */
 export const MAX_ITEMS = 20;
 
+/**
+ * Plausible ranges for a single restaurant portion.
+ *
+ * The model is estimating, not looking anything up, so it will occasionally
+ * produce a 5000 kcal salad or a steak with no protein. Those are the errors a
+ * judge spots instantly, and they poison the scoring too - scoreDish() reads
+ * these numbers directly, so one absurd value moves a dish to the top or bottom
+ * of the ranking for no reason.
+ */
+const SANE = {
+  calories: [50, 2000],
+  protein: [0, 150],
+  carbs: [0, 250],
+  fat: [0, 150],
+} as const;
+
+/** Grams of macro cannot exceed the calories they would have to supply. */
+const KCAL_PER_G = { protein: 4, carbs: 4, fat: 9 } as const;
+
+function isImplausible(n: {
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+}): boolean {
+  for (const [key, [min, max]] of Object.entries(SANE)) {
+    const value = n[key as keyof typeof SANE];
+    if (!Number.isFinite(value) || value < min || value > max) return true;
+  }
+
+  // A dish whose macros imply far more energy than its own calorie count is
+  // internally inconsistent, whatever the individual numbers look like.
+  const implied =
+    n.protein * KCAL_PER_G.protein +
+    n.carbs * KCAL_PER_G.carbs +
+    n.fat * KCAL_PER_G.fat;
+
+  return implied > n.calories * 2.2 || implied < n.calories * 0.35;
+}
+
+/** Names of dishes whose numbers we do not believe. */
+export function implausibleDishes(items: { translatedName: string; nutrition: Parameters<typeof isImplausible>[0] }[]) {
+  return items.filter((i) => isImplausible(i.nutrition)).map((i) => i.translatedName);
+}
+
 /** Appended on the one repair attempt, after the model broke the contract. */
 const REPAIR_HINT = `
 
-Your previous response did not match the required schema. Return ONLY valid JSON
-matching the schema exactly. Every field is required. Do not add commentary.`;
+Your previous response was rejected. Return ONLY valid JSON matching the schema
+exactly - every field is required, and no commentary.
+
+Check the nutrition especially. Each dish is ONE restaurant portion: 50-2000 kcal,
+and the macros must roughly add up to the calories (protein and carbs are 4 kcal
+per gram, fat is 9). A salad is not 5000 kcal and a steak is not 0g protein.`;
 
 function isAbort(error: unknown): boolean {
   const name = (error as Error)?.name ?? "";
@@ -556,6 +611,20 @@ async function callGemini(
 
   // Cap before validating so a huge menu cannot blow up the payload.
   draft.items = draft.items.slice(0, MAX_ITEMS);
+
+  // Nutrition is estimated, so it is occasionally nonsense - a 5000 kcal salad,
+  // a steak with no protein. Those are what a judge notices, and scoreDish()
+  // reads these numbers directly, so one bad value distorts the ranking. Treat
+  // it as a contract violation on the first pass so the repair attempt can fix
+  // it; accept it on the repair rather than failing the whole request.
+  if (!repair && draft.isMenu) {
+    const bad = implausibleDishes(draft.items);
+    if (bad.length > 0) {
+      throw new InvalidMenuDataError(
+        `implausible nutrition for: ${bad.slice(0, 3).join(", ")}`,
+      );
+    }
+  }
 
   return AnalyzedMenu.parse({
     ...draft,

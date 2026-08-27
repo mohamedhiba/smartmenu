@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useMenuStore } from "@/lib/store";
@@ -30,20 +31,23 @@ export default function ProcessingPage() {
     void analyze();
   }, [analyze, router, status]);
 
+  // The stages are decorative - one model call cannot report progress. They
+  // walk forward and then hold on the last one. They must never drive
+  // navigation: the real call takes ~15s in production, so a timer would show
+  // the user the demo menu instead of their own photo, and would skip straight
+  // past an error before it could be read.
   useEffect(() => {
+    if (status !== "analyzing") return;
+    if (stageIndex >= stages.length - 1) return;
+
     const timer = window.setTimeout(() => {
-      setStageIndex((current) => (current + 1) % stages.length);
-    }, 900);
+      setStageIndex((current) => Math.min(current + 1, stages.length - 1));
+    }, 2200);
 
     return () => window.clearTimeout(timer);
-  }, [stageIndex]);
+  }, [stageIndex, status]);
 
-  useEffect(() => {
-    if (stageIndex === stages.length - 1) {
-      const timer = window.setTimeout(() => router.push("/menu"), 800);
-      return () => window.clearTimeout(timer);
-    }
-  }, [router, stageIndex]);
+  const failed = status === "error";
 
   return (
     <main
@@ -63,12 +67,47 @@ export default function ProcessingPage() {
       </div>
 
       <div>
-        <h1 style={{ margin: 0, fontSize: 32 }}>Analyzing your menu</h1>
+        <h1 style={{ margin: 0, fontSize: 32 }}>
+          {failed ? "We could not read that" : "Analyzing your menu"}
+        </h1>
         <p style={{ margin: "10px 0 0", color: "#8b93a3", lineHeight: 1.5 }}>
-          We are reading the menu, translating sections, and matching each dish to your preferences.
+          {failed
+            ? error
+            : "We are reading the menu, translating sections, and matching each dish to your preferences."}
         </p>
       </div>
 
+      {failed ? (
+        <div style={{ display: "grid", gap: 12 }}>
+          <Link
+            href="/"
+            style={{
+              background: "#14b8a6",
+              color: "#04231f",
+              borderRadius: 16,
+              padding: "16px 20px",
+              textAlign: "center",
+              fontWeight: 600,
+              textDecoration: "none",
+            }}
+          >
+            Try another photo
+          </Link>
+          <Link
+            href="/menu"
+            style={{
+              border: "1px solid #262a33",
+              color: "#8b93a3",
+              borderRadius: 16,
+              padding: "14px 20px",
+              textAlign: "center",
+              textDecoration: "none",
+            }}
+          >
+            See the sample menu instead
+          </Link>
+        </div>
+      ) : (
       <div style={{ display: "grid", gap: 12 }}>
         {stages.map((label, index) => {
           const active = index <= stageIndex;
@@ -99,6 +138,7 @@ export default function ProcessingPage() {
           );
         })}
       </div>
+      )}
 
       <div
         style={{
@@ -110,10 +150,14 @@ export default function ProcessingPage() {
         }}
       >
         <p style={{ margin: 0, color: "#8b93a3", fontSize: 12, letterSpacing: 1.2, textTransform: "uppercase" }}>
-          Demo run
+          {failed ? "What happened" : "Status"}
         </p>
         <p style={{ margin: "8px 0 0", fontSize: 18, fontWeight: 600 }}>
-          {error ?? (status === "analyzing" ? "Reading your menu..." : "Ready to rank your dishes.")}
+          {failed
+            ? "Nothing was changed - your last menu is still there."
+            : status === "analyzing"
+              ? "Reading your menu..."
+              : "Ready to rank your dishes."}
         </p>
       </div>
     </main>
