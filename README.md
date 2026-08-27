@@ -87,5 +87,6 @@ names and PR rules.
 
 - [`docs/PLAN.md`](docs/PLAN.md) - what we are building and why
 - [`docs/WALKTHROUGH.md`](docs/WALKTHROUGH.md) - the build explained for someone who did not write it
+- [`docs/SmartMenu-Handbook.pdf`](docs/SmartMenu-Handbook.pdf) - **14-page team handbook and judge briefing**, including the full schema and prompt
 - [`docs/PITCH.md`](docs/PITCH.md) - the three-slide pitch and speaker notes
 - [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md) - the 90-second run, and what to do if it breaks

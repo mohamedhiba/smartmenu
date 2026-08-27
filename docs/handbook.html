@@ -1,0 +1,742 @@
+<meta charset="utf-8">
+<title>SmartMenu Handbook</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm; }
+  :root {
+    --ink: #14161a; --muted: #5d6470; --line: #d8dce3;
+    --accent: #0d7d70; --amber: #a86a06; --red: #b4322c; --bg-soft: #f5f7f9;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    color: var(--ink); font-size: 10.2pt; line-height: 1.5; margin: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+  /* A4 minus 18mm top/bottom margins. Gives the footer something to anchor to
+     without position:fixed, which repeats on every printed page. */
+  .page { page-break-after: always; position: relative; min-height: 258mm;
+          padding-bottom: 10mm; }
+  .page:last-child { page-break-after: auto; }
+  h1 { font-size: 25pt; line-height: 1.1; margin: 0 0 6pt; letter-spacing: -0.4pt; }
+  h2 { font-size: 15pt; margin: 0 0 8pt; letter-spacing: -0.2pt;
+       border-bottom: 2px solid var(--ink); padding-bottom: 5pt; }
+  h3 { font-size: 11pt; margin: 14pt 0 4pt; }
+  h4 { font-size: 10pt; margin: 11pt 0 3pt; color: var(--muted);
+       text-transform: uppercase; letter-spacing: 0.6pt; }
+  p { margin: 0 0 7pt; }
+  ul, ol { margin: 0 0 7pt; padding-left: 15pt; }
+  li { margin-bottom: 3pt; }
+  code { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 8.8pt;
+         background: var(--bg-soft); padding: 1px 3px; border-radius: 3px; }
+  pre { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 8.2pt;
+        background: var(--bg-soft); border-left: 3px solid var(--accent);
+        padding: 8pt 10pt; margin: 8pt 0; line-height: 1.45;
+        white-space: pre-wrap; border-radius: 0 4px 4px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 8pt 0; font-size: 9.2pt; }
+  th { text-align: left; border-bottom: 1.5px solid var(--ink); padding: 5pt 6pt 4pt;
+       font-size: 8.4pt; text-transform: uppercase; letter-spacing: 0.5pt; }
+  td { border-bottom: 1px solid var(--line); padding: 5pt 6pt; vertical-align: top; }
+  .lead { font-size: 11.5pt; color: var(--muted); line-height: 1.5; }
+  .note { background: var(--bg-soft); border-left: 3px solid var(--accent);
+          padding: 9pt 11pt; margin: 10pt 0; }
+  .warn { background: #fdf4f3; border-left: 3px solid var(--red);
+          padding: 9pt 11pt; margin: 10pt 0; }
+  .muted { color: var(--muted); }
+  .kicker { font-size: 8.4pt; text-transform: uppercase; letter-spacing: 1.4pt;
+            color: var(--accent); font-weight: 700; margin-bottom: 5pt; }
+  .foot { position: absolute; bottom: 0; left: 0; right: 0; font-size: 7.6pt;
+          color: var(--muted); display: flex; justify-content: space-between;
+          border-top: 1px solid var(--line); padding-top: 4pt; }
+  .cover { display: flex; flex-direction: column; justify-content: center; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14pt; }
+  .ok { color: var(--accent); font-weight: 700; }
+  .bad { color: var(--red); font-weight: 700; }
+  .big { font-size: 20pt; font-weight: 700; letter-spacing: -0.4pt; }
+  .statrow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10pt; margin: 10pt 0; }
+  .stat { border-top: 2px solid var(--ink); padding-top: 6pt; }
+  .stat .n { font-size: 17pt; font-weight: 700; letter-spacing: -0.4pt; }
+  .stat .l { font-size: 8pt; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5pt; }
+</style>
+
+<!-- 1 ------------------------------------------------------------------ -->
+<section class="page cover">
+  <div class="kicker">Team handbook &amp; judge briefing</div>
+  <h1>SmartMenu</h1>
+  <p class="lead" style="max-width: 118mm; margin-top: 6pt;">
+    Photograph a menu in any language. Get it translated, nutrition-scored and
+    ranked against your diet. One photo, no typing.
+  </p>
+
+  <div class="statrow" style="margin-top: 22pt;">
+    <div class="stat"><div class="n">1</div><div class="l">model call</div></div>
+    <div class="stat"><div class="n">8&ndash;11s</div><div class="l">photo to menu</div></div>
+    <div class="stat"><div class="n">2,654</div><div class="l">lines of TS</div></div>
+    <div class="stat"><div class="n">18</div><div class="l">merged PRs</div></div>
+  </div>
+
+  <div class="note" style="margin-top: 20pt;">
+    <strong>How to use this document.</strong> Pages 2&ndash;3 are the story you tell a
+    judge. Pages 4&ndash;7 are how the system actually works, so you can answer
+    follow-ups. Pages 8&ndash;10 are the numbers, the failure plan, and the
+    questions we expect to be asked.
+  </div>
+
+  <p class="muted" style="margin-top: 30pt; font-size: 9pt;">
+    Live: <code>smartmenu-two-ruddy.vercel.app</code> &middot;
+    Repo: <code>github.com/mohamedhiba/smartmenu</code><br>
+    Built by Mohamed Hiba, Abigail Vincent and Brandon Ljikovic.
+  </p>
+</section>
+
+<!-- 2 ------------------------------------------------------------------ -->
+<section class="page">
+  <h2>1 &middot; The problem</h2>
+
+  <p class="lead">You are in Rome. The menu is in Italian. You are keto.</p>
+
+  <p>
+    Google Translate gives you <em>words</em>. It tells you that <em>trofie al
+    pesto</em> is &ldquo;trofie with pesto&rdquo;. It does not tell you that it is 76 grams
+    of carbohydrate, or that pesto contains pine nuts even though the menu never
+    says so.
+  </p>
+
+  <p>
+    Anyone eating to a rule &mdash; keto, coeliac, vegan, a nut allergy &mdash; is doing
+    two translations at once. The language, and then the ingredients. The second
+    one is the one that actually matters, and it is the one no tool does.
+  </p>
+
+  <h3>What SmartMenu does instead</h3>
+  <ol>
+    <li>You photograph the menu.</li>
+    <li>You tap your diet and any restrictions. Three taps.</li>
+    <li>Every dish comes back translated, with estimated macros, allergen flags,
+        a score out of 100, and a plain-English reason for that score.</li>
+  </ol>
+
+  <div class="note">
+    <strong>The sentence to land on:</strong> the ranking is not a translation,
+    it is a decision. We do not tell you what the dish is called. We tell you
+    whether to order it, and why.
+  </div>
+
+  <h3>Real output, from a real photo</h3>
+  <p class="muted" style="font-size:9.4pt">
+    A photographed Spanish menu (39 dishes, laminated, glare), read as
+    <code>es</code>, ranked for keto:
+  </p>
+
+  <table>
+    <tr><th>Score</th><th>Dish</th><th>Why</th></tr>
+    <tr><td><span class="ok">86</span></td><td>Cod in Tomato Sauce <span class="muted">&mdash; Bacalao con tomate</span></td><td>Keto friendly</td></tr>
+    <tr><td><span class="ok">83</span></td><td>Tuna Salad <span class="muted">&mdash; Ensalada con at&uacute;n</span></td><td>Keto friendly</td></tr>
+    <tr><td><span class="ok">82</span></td><td>Assorted Cheese Board <span class="muted">&mdash; Tabla de quesos</span></td><td>Keto friendly</td></tr>
+    <tr><td><span class="bad">23</span></td><td>Fried Peppers and Potatoes</td><td>38g carbs &ndash; not keto</td></tr>
+    <tr><td><span class="bad">19</span></td><td>Fried Breadcrumbs with Pork <span class="muted">&mdash; Migas</span></td><td>50g carbs &ndash; not keto</td></tr>
+  </table>
+
+  <p>
+    Note what the model inferred that the menu never stated: that
+    <em>migas</em> is bread-based and therefore not gluten-free, and that
+    <em>tabla de quesos</em> is low enough in carbohydrate to suit keto. No
+    database knows that. That inference is the product.
+  </p>
+
+  <div class="foot"><span>SmartMenu handbook</span><span>2</span></div>
+</section>
+
+<!-- 3 ------------------------------------------------------------------ -->
+<section class="page">
+  <h2>2 &middot; The one decision worth defending</h2>
+
+  <p>
+    If a judge only remembers one technical thing, make it this. Everything else
+    is execution.
+  </p>
+
+  <h4>The obvious build</h4>
+  <pre>photo → Google Vision OCR → GPT structuring → Google Translate
+      → FoodData Central lookup → scoring → UI</pre>
+  <p>
+    Five APIs, five sets of credentials, five failure points &mdash; and a nutrition
+    lookup that has to fuzzy-match &ldquo;Trofie al Pesto Genovese&rdquo; against a database
+    keyed on &ldquo;pasta, cooked&rdquo;. That last step alone is a research project.
+  </p>
+
+  <h4>What we built</h4>
+  <pre>photo → downscale in browser → ONE multimodal call (strict JSON schema)
+      → validate → score → ranked menu</pre>
+
+  <h3>Why this is the right architecture, not a shortcut</h3>
+  <ul>
+    <li><strong>A vision model reading a menu does not need OCR as a separate
+        step.</strong> It reads the image directly. Handing it pre-extracted text
+        would actually <em>lose</em> information &mdash; layout is what tells you which
+        line is a section header and which is a dish.</li>
+    <li><strong>Translation is free once the model is already reading.</strong>
+        Asking for output in the target language costs nothing extra.</li>
+    <li><strong>Ingredient inference is something only a language model can
+        do.</strong> No database knows carbonara contains egg and pork when the menu
+        just says &ldquo;Spaghetti alla Carbonara&rdquo;.</li>
+    <li><strong>Nutrition estimation is honest about what it is.</strong> A
+        restaurant does not publish macros. A lookup on a fuzzy foreign dish name
+        would be an estimate too &mdash; just slower, wearing a lab coat.</li>
+  </ul>
+
+  <div class="note">
+    <strong>The half that is deliberately not AI.</strong> Scoring is a pure
+    function in <code>lib/scoring.ts</code>. The same dish and the same preferences
+    always produce the same score, and the score can explain itself.
+    <br><br>
+    <strong>The model does perception. Deterministic code does judgement.</strong>
+    That is why the app can tell you <em>why</em>, and why it cannot quietly
+    change its mind between two people asking the same question.
+  </div>
+
+  <h3>What it proved it can read</h3>
+  <p>
+    On an Argentine menu that marks gluten-free dishes with a crossed-wheat
+    <em>icon</em> rather than text, the model flagged exactly the five marked
+    dishes and correctly did not flag the pasta, the pastry or the empanadas. It
+    read a symbol, not a word.
+  </p>
+
+  <div class="foot"><span>SmartMenu handbook</span><span>3</span></div>
+</section>
+
+<!-- 4 ------------------------------------------------------------------ -->
+<section class="page">
+  <h2>3 &middot; How a photo becomes a ranked menu</h2>
+
+  <pre>  Scan screen  (app/page.tsx)
+      │  a File from &lt;input type="file" accept="image/*" capture="environment"&gt;
+      ▼
+  lib/image.ts          downscale to ≤1024px, JPEG q0.72, bare base64
+      │                 12.9MB PNG → 194KB. ~400ms.
+      ▼
+  POST /api/analyze     { imageBase64, mimeType, prefs }
+      │                 size guard, shape validation
+      ▼
+  lib/llm.ts            ONE gemini-3.1-flash-lite call
+      │                 schema generated from lib/schema.ts
+      │                 3 keys rotated · 2nd model · OpenAI · all in one 40s budget
+      ▼
+  zod validation        AnalyzedMenu, or a typed error
+      │                 nutrition sanity check → one repair pass
+      ▼
+  lib/scoring.ts        scoreDish(item, prefs) → score, label, reasons
+      │                 pure, deterministic, explainable
+      ▼
+  lib/store.ts          zustand, sorted by score, persisted to sessionStorage
+      │
+      ▼
+  Smart Menu  →  Dish Details  →  Ask about this dish</pre>
+
+  <h3>Why the image is downscaled in the browser</h3>
+  <p>
+    A phone photo is 3&ndash;5MB, and base64 inflates it by a third. <strong>Vercel
+    rejects request bodies over 4.5MB before our code runs.</strong> Without this
+    step the first real photo on stage returns 413 and the demo dies. It also
+    cuts model latency and token cost by roughly five times.
+  </p>
+
+  <h3>Why the processing screen never navigates on a timer</h3>
+  <p>
+    An early version advanced its progress stages on a timer and pushed to the
+    menu after ~4 seconds. The real call takes 8&ndash;20 seconds, so the user was
+    shown the <em>sample</em> menu instead of their own photo, and an error could
+    never appear because the page had already left. The stages are decorative;
+    only the result drives navigation.
+  </p>
+
+  <div class="foot"><span>SmartMenu handbook</span><span>4</span></div>
+</section>
+
+<!-- 5 ------------------------------------------------------------------ -->
+<section class="page">
+  <h2>4 &middot; The codebase</h2>
+
+  <p class="muted">2,654 lines of TypeScript. Eight runtime dependencies. No database.</p>
+
+  <table>
+    <tr><th style="width:31%">File</th><th style="width:11%">Lines</th><th>What it does</th></tr>
+    <tr><td><code>lib/schema.ts</code></td><td>131</td><td><strong>The contract.</strong> zod definitions of <code>Prefs</code>, <code>MenuItem</code>, <code>AnalyzedMenu</code>, <code>Scored</code>. Everything else is downstream of this file.</td></tr>
+    <tr><td><code>lib/llm.ts</code></td><td>640</td><td>The model call. Prompt, generated response schema, key rotation, model and provider fallback, timeout budget, repair pass, nutrition sanity.</td></tr>
+    <tr><td><code>lib/scoring.ts</code></td><td>168</td><td>Deterministic ranking. Hard diet blocks, soft preferences, reason chips, tiebreaks.</td></tr>
+    <tr><td><code>lib/store.ts</code></td><td>160</td><td>zustand state. Calls the API, maps every error code to something a human can read.</td></tr>
+    <tr><td><code>lib/image.ts</code></td><td>53</td><td>Canvas downscale and base64 encode, in the browser.</td></tr>
+    <tr><td><code>lib/fixtures.ts</code></td><td>106</td><td>The 8-dish demo menu. Backs every screen and <code>?demo=1</code>.</td></tr>
+    <tr><td><code>components/types.ts</code></td><td>61</td><td><strong>The UI contract.</strong> The props each screen takes.</td></tr>
+    <tr><td><code>components/**</code></td><td>14 files</td><td>Every visual. Primitives, five screens, DishCard, ScoreBadge, CategoryTile.</td></tr>
+    <tr><td><code>app/**/page.tsx</code></td><td>5 files</td><td>Thin containers. Own data, routing and state; no visuals.</td></tr>
+    <tr><td><code>app/api/analyze</code></td><td>113</td><td>The one endpoint that matters. Never returns a blank 500.</td></tr>
+    <tr><td><code>app/api/ask-dish</code></td><td>171</td><td>Follow-up questions about a dish.</td></tr>
+  </table>
+
+  <h3>The two contracts, and why they mattered</h3>
+  <p>
+    Three people built this in parallel. That worked because two files were
+    agreed <em>before anyone wrote a screen</em>:
+  </p>
+  <ul>
+    <li><code>lib/schema.ts</code> fixes the shape of the data.</li>
+    <li><code>components/types.ts</code> fixes the props each screen takes.</li>
+  </ul>
+  <p>
+    Abigail built every component against those props. Brandon built the pages
+    and state against the same props. Neither opened the other's files. When the
+    two halves were finally connected, <strong>the contract needed zero
+    changes</strong> &mdash; they fit on the first try.
+  </p>
+
+  <div class="note">
+    <strong>The rule:</strong> pages own data, routing and state. Components own
+    everything visible. A page should not contain a Tailwind class beyond layout.
+  </div>
+
+  <div class="foot"><span>SmartMenu handbook</span><span>5</span></div>
+</section>
+
+<!-- 6 ------------------------------------------------------------------ -->
+<section class="page">
+  <h2>5 &middot; How the scoring works</h2>
+
+  <p>
+    This is the part judges probe hardest, because it is the part that makes a
+    recommendation rather than a translation. It is ordinary code &mdash; no model
+    involved &mdash; and that is the point.
+  </p>
+
+  <h3>Hard blocks come first</h3>
+  <p>
+    A dish that breaks the diet, or trips a declared allergy, is capped at
+    <strong>&ldquo;limit&rdquo;</strong> no matter what else it has going for it. A veto, not
+    a penalty. Someone who cannot eat gluten is not helped by a coeliac-unsafe
+    dish scoring 60 out of 100.
+  </p>
+
+  <h3>But blocked dishes still rank against each other</h3>
+  <p>
+    On a menu where nothing fits the diet, an early version pinned every dish to
+    exactly 35 &mdash; twelve identical red cards in arbitrary order, with the dish
+    closest to acceptable buried in the middle. That is worse than useless.
+  </p>
+  <p>
+    Blocked dishes now spread across the band below &ldquo;limit&rdquo; by <em>how badly</em>
+    they break the rule. Keto has a natural gradient in carbohydrate. Binary
+    diets have no honest gradient, so calorie load is used purely as a tiebreak.
+    An allergy is not a spectrum &mdash; those sink to the bottom.
+  </p>
+
+  <table>
+    <tr><th>Keto, same menu</th><th>Before</th><th>After</th></tr>
+    <tr><td>Prawn &amp; Brie Salad (16g carbs)</td><td>35 limit</td><td><span class="ok">33</span> &mdash; ranked first</td></tr>
+    <tr><td>Beef Filet (24g)</td><td>35 limit</td><td>30</td></tr>
+    <tr><td>Empanadas (38g)</td><td>35 limit &mdash; <em>ranked above the salad</em></td><td>23</td></tr>
+    <tr><td>Ossobuco Sorrentinos (70g)</td><td>35 limit</td><td>7</td></tr>
+  </table>
+
+  <h3>Reasons are written for humans</h3>
+  <p>
+    <code>reasons[]</code> is what the details screen shows under &ldquo;Why this
+    score&rdquo;. They read as things a person would say &mdash; <em>&ldquo;38g carbs &ndash; not
+    keto&rdquo;</em>, <em>&ldquo;Contains gluten&rdquo;</em>, <em>&ldquo;High protein (46g)&rdquo;</em> &mdash; not as
+    field names. Negatives matter as much as positives: a coeliac needs to read
+    &ldquo;contains gluten&rdquo;, not the absence of a green tick.
+  </p>
+
+  <h3>Nutrition sanity</h3>
+  <p>
+    The model estimates macros, so it occasionally produces nonsense &mdash; a
+    5000&nbsp;kcal salad, a steak with no protein. Those are what a judge notices
+    instantly, and scoring reads the numbers directly, so one absurd value drags
+    a dish to the top or bottom for no reason. Implausible macros (out of range,
+    or not adding up to the stated calories) are rejected and re-asked once.
+  </p>
+
+  <div class="foot"><span>SmartMenu handbook</span><span>6</span></div>
+</section>
+
+<!-- 7 ------------------------------------------------------------------ -->
+<section class="page">
+  <h2>6 &middot; Why it does not fall over</h2>
+
+  <p>
+    Every request runs inside <strong>one 40-second wall-clock budget</strong>.
+    Inside it, this ladder:
+  </p>
+
+  <table>
+    <tr><th>Tier</th><th>What</th><th>Fires when</th></tr>
+    <tr><td>1</td><td>3 API keys, rotated from a moving start point</td><td>Always. Rotating the start spreads load instead of draining key 1.</td></tr>
+    <tr><td>2</td><td><code>gemini-3.6-flash</code>, a different model</td><td>Keys spent, model retired, or contract broken. Rate limits are per model, so this is a different bucket.</td></tr>
+    <tr><td>3</td><td>OpenAI <code>gpt-4o</code></td><td>Same, when a funded key exists.</td></tr>
+    <tr><td>&mdash;</td><td><code>?demo=1</code></td><td>Manual. Returns the sample menu in <strong>0.4s</strong> without touching a model.</td></tr>
+  </table>
+
+  <p>
+    We deliberately do <em>not</em> fall back on a blown deadline or a malformed
+    request. Neither is fixed by asking someone else, and both would just spend
+    what is left of the budget.
+  </p>
+
+  <h3>Every failure says something true</h3>
+  <table>
+    <tr><th>Situation</th><th>Status</th><th>What the user reads</th></tr>
+    <tr><td>Photo is not a menu</td><td>422</td><td>&ldquo;That does not look like a menu. Try another photo.&rdquo;</td></tr>
+    <tr><td>All keys rate-limited</td><td>429</td><td>&ldquo;We are getting a lot of requests.&rdquo;</td></tr>
+    <tr><td>Budget exhausted</td><td>504</td><td>&ldquo;That took too long. Try once more.&rdquo;</td></tr>
+    <tr><td>Image too large</td><td>413</td><td>&ldquo;That photo is too large.&rdquo;</td></tr>
+    <tr><td>Model broke the contract twice</td><td>200</td><td>Sample menu, <em>labelled as sample</em></td></tr>
+  </table>
+
+  <div class="note">
+    <strong>The rule:</strong> the endpoint never returns a blank 500. And when
+    it degrades to the sample menu, <strong>the screen says so.</strong> Showing
+    someone else's menu as though it were their photo is worse than showing an
+    error &mdash; especially to a judge who just photographed their own.
+  </div>
+
+  <h3>Three layers against a wrong answer</h3>
+  <ol>
+    <li>A strict response schema, so the model cannot return prose.</li>
+    <li>Runtime validation against the same contract that types the app.</li>
+    <li>A sanity check and one repair pass before anything reaches the screen.</li>
+  </ol>
+
+  <div class="foot"><span>SmartMenu handbook</span><span>7</span></div>
+</section>
+
+<!-- 8 ------------------------------------------------------------------ -->
+<section class="page">
+  <h2>7 &middot; What we measured</h2>
+
+  <p class="muted">All figures from real runs against real photographed menus, not estimates.</p>
+
+  <h3>Speed</h3>
+  <table>
+    <tr><th>Step</th><th>Time</th></tr>
+    <tr><td>Browser downscale, 12.9MB photo → 194KB</td><td>~400ms</td></tr>
+    <tr><td>12-dish Argentine menu, end to end</td><td>8&ndash;15s</td></tr>
+    <tr><td>39-dish Spanish menu (capped to 20)</td><td>8&ndash;16s</td></tr>
+    <tr><td><code>?demo=1</code> on production</td><td><strong>0.4s</strong></td></tr>
+    <tr><td>Follow-up question about a dish</td><td>0.4s</td></tr>
+  </table>
+
+  <h3>Choosing the model on evidence</h3>
+  <p>
+    The primary model is <code>gemini-3.1-flash-lite</code> because it measured
+    better here, not because it is cheaper. On our hardest menu:
+  </p>
+  <table>
+    <tr><th></th><th>gemini-3.6-flash</th><th>gemini-3.1-flash-lite</th></tr>
+    <tr><td>Time</td><td>14&ndash;25s, <span class="bad">timing out in production</span></td><td><span class="ok">8&ndash;11s</span></td></tr>
+    <tr><td>Dishes read</td><td>20</td><td>20</td></tr>
+    <tr><td>Language / allergens</td><td>correct</td><td>correct</td></tr>
+  </table>
+  <p class="muted" style="font-size:9pt">
+    Identical output, roughly half the time. The slower model is still the
+    fallback tier, so nothing was lost by demoting it.
+  </p>
+
+  <h3>Accuracy on real photographs</h3>
+  <table>
+    <tr><th>Check</th><th>Result</th></tr>
+    <tr><td>39-dish Spanish menu, laminated with glare</td><td><span class="ok">All 20 (cap) read, language detected</span></td></tr>
+    <tr><td>Gluten-free marked by <em>icon</em>, not text</td><td><span class="ok">All 5 correct; pasta and pastry correctly excluded</span></td></tr>
+    <tr><td>Pesto → contains nuts</td><td><span class="ok">Correct &mdash; never stated on the menu</span></td></tr>
+    <tr><td>Migas (breadcrumbs) → not gluten-free</td><td><span class="ok">Correct</span></td></tr>
+    <tr><td>Regional translation, <em>&ldquo;Patatas a lo pobre&rdquo;</em></td><td><span class="ok">&ldquo;Poor Man's Potatoes&rdquo;</span></td></tr>
+    <tr><td>Photo of a weather report</td><td><span class="ok">Rejected with a plain-English reason</span></td></tr>
+  </table>
+
+  <h3>Build discipline</h3>
+  <div class="statrow">
+    <div class="stat"><div class="n">18</div><div class="l">merged PRs</div></div>
+    <div class="stat"><div class="n">0</div><div class="l">direct pushes to main</div></div>
+    <div class="stat"><div class="n">100%</div><div class="l">CI-gated merges</div></div>
+    <div class="stat"><div class="n">0</div><div class="l">console errors</div></div>
+  </div>
+  <p class="muted" style="font-size:9pt">
+    <code>main</code> is protected. Every merge passes <code>tsc</code>, ESLint and
+    a production build &mdash; run with <code>DEMO_MODE=1</code>, so the build can never
+    depend on a live API key.
+  </p>
+
+  <div class="foot"><span>SmartMenu handbook</span><span>8</span></div>
+</section>
+
+<!-- 9 ------------------------------------------------------------------ -->
+<section class="page">
+  <h2>8 &middot; Running the demo</h2>
+
+  <h3>Before you walk up</h3>
+  <ul>
+    <li>Phone on venue Wi-Fi <em>and</em> mobile data as backup.</li>
+    <li><strong>Load the URL once to warm it.</strong> A cold serverless start
+        adds seconds to a request that already takes ten.</li>
+    <li>Use <code>smartmenu-two-ruddy.vercel.app</code>. Not any other deployment.</li>
+    <li>Printed menu in hand. Screen recording saved locally.</li>
+  </ul>
+
+  <h3>The run &mdash; about 90 seconds</h3>
+  <ol>
+    <li><strong>Pitch, 15s.</strong> &ldquo;You are in Rome, the menu is in Italian, and
+        you are keto. Google Translate gives you words. It does not tell you what
+        you can actually eat.&rdquo;</li>
+    <li><strong>Scan.</strong> Take the photo live.</li>
+    <li><strong>Preferences.</strong> Three taps. Say them out loud.</li>
+    <li><strong>Processing.</strong> Let the stages run. <em>Do not talk over
+        them</em> &mdash; they are explaining the product for you.</li>
+    <li><strong>Smart Menu.</strong> &ldquo;Ranked against my diet. Green I can eat, red
+        I should skip.&rdquo; Point at the top and the bottom.</li>
+    <li><strong>Dish details.</strong> Tap the top dish. &ldquo;Macros, real
+        ingredients, and &mdash; this is the part that matters &mdash; <em>why</em> it
+        scored that way.&rdquo;</li>
+    <li><strong>Close, 15s.</strong> &ldquo;One photo, one model call, no typing. Works
+        on any phone with a browser.&rdquo;</li>
+  </ol>
+
+  <div class="warn">
+    <strong>If it breaks, say nothing about the error.</strong> Add
+    <code>?demo=1</code> to the URL and keep talking &mdash; it answers in under half a
+    second. If that fails, switch to the recording without pausing.
+    <strong>Never debug on stage.</strong>
+  </div>
+
+  <h3>Known limits &mdash; be honest if asked</h3>
+  <ul>
+    <li>Menus longer than 20 dishes are capped at 20, in menu order.</li>
+    <li>Nutrition is estimated, not looked up. We sanity-check it and say so.</li>
+    <li>Category tiles are gradient-and-icon, not photographs. Generated photos
+        are wired but were blocked by a daily quota.</li>
+    <li>State lives in the browser session. Nothing is stored server-side, and
+        there is no account.</li>
+  </ul>
+
+  <div class="foot"><span>SmartMenu handbook</span><span>9</span></div>
+</section>
+
+<!-- 10 ----------------------------------------------------------------- -->
+<section class="page">
+  <h2>9 &middot; Questions we expect</h2>
+
+  <h4>&ldquo;The nutrition is just guessed.&rdquo;</h4>
+  <p>
+    It is estimated, and we say so on screen. A restaurant does not publish
+    macros; a database lookup on a fuzzy foreign dish name would be an estimate
+    too, just slower. We reject implausible values and re-ask. For <em>should I
+    order this</em>, a directionally right estimate beats a precise number for the
+    wrong dish.
+  </p>
+
+  <h4>&ldquo;What if the model is wrong?&rdquo;</h4>
+  <p>
+    Three layers: a strict schema so it cannot return prose, runtime validation
+    against the same contract that types the app, and a repair pass. And the
+    scoring &mdash; the part that gives advice &mdash; is not the model at all.
+  </p>
+
+  <h4>&ldquo;Why not use a real nutrition database?&rdquo;</h4>
+  <p>
+    Because the hard part is not the lookup, it is the match. &ldquo;Trofie al Pesto
+    Genovese&rdquo; does not appear in any database. You would be fuzzy-matching a
+    foreign dish name to a generic row and calling the result precise.
+  </p>
+
+  <h4>&ldquo;Is this just a wrapper around an API?&rdquo;</h4>
+  <p>
+    The model call is one file. The rest is the judgement layer: a deterministic
+    scorer that can explain itself, a validation and repair pipeline, a
+    three-tier fallback ladder inside a fixed time budget, and a UI that admits
+    when it is showing sample data. The model is a component, not the product.
+  </p>
+
+  <h4>&ldquo;What happens on a menu with nothing you can eat?&rdquo;</h4>
+  <p>
+    You still get a ranking &mdash; ordered by how close each dish is to acceptable,
+    with the reason on every card. That case is specifically handled, because it
+    is the case where a diner most needs help.
+  </p>
+
+  <h4>&ldquo;Why a web app rather than native?&rdquo;</h4>
+  <p>
+    You are holding the demo. No install, no TestFlight, no review. It is React
+    either way; the server side exists only because an API key cannot live in
+    browser JavaScript.
+  </p>
+
+  <h2 style="margin-top: 16pt;">10 &middot; What is next</h2>
+  <ul>
+    <li><strong>Allergen alerts</strong> rather than score penalties &mdash; the flags
+        are already in the schema.</li>
+    <li><strong>Real nutrition data</strong> for the dishes common enough to have
+        it, with the model as fallback for everything else.</li>
+    <li><strong>Restaurant partnerships</strong> &mdash; a restaurant uploads its menu
+        once and gets a QR code, so the diner skips the photo entirely. That is
+        also the business model.</li>
+  </ul>
+
+  <div class="note" style="margin-top:14pt">
+    <strong>One line to leave them with:</strong> every other tool translates the
+    menu. SmartMenu reads it, understands what is in the food, and tells you what
+    to order.
+  </div>
+
+  <div class="foot"><span>SmartMenu handbook</span><span>10</span></div>
+</section>
+
+<!-- 11 ---------------------------------------------------------------- -->
+<section class="page">
+  <h2>Appendix A &middot; The contract</h2>
+
+  <p>
+    <code>lib/schema.ts</code>, in full. Everything downstream is typed from
+    this file &mdash; the model request, the API response, the store, the scorer and
+    every component prop. It was frozen before anyone wrote a screen.
+  </p>
+
+  <pre>export const Prefs = z.object({
+  diet: z.enum(DIETS).default(&quot;none&quot;),
+  lowCarb: z.boolean().default(false),
+  highProtein: z.boolean().default(false),
+  noNuts: z.boolean().default(false),
+  targetLang: z.string().default(&quot;en&quot;),
+});
+
+export const Nutrition = z.object({
+  calories: z.number(),
+  protein: z.number(),
+  carbs: z.number(),
+  fat: z.number(),
+});
+
+export const Flags = z.object({
+  vegan: z.boolean(),
+  vegetarian: z.boolean(),
+  glutenFree: z.boolean(),
+  containsNuts: z.boolean(),
+});
+
+export const MenuItem = z.object({
+  id: z.string(),
+  originalName: z.string(),
+  translatedName: z.string(),
+  section: z.string(),
+  category: z.enum(CATEGORIES),
+  ingredients: z.array(z.string()),
+  nutrition: Nutrition,
+  flags: Flags,
+  confidence: z.number().min(0).max(1).default(0.8),
+});
+
+export const AnalyzedMenu = z.object({
+  isMenu: z.boolean().default(true),
+  rejectionReason: z.string().nullable().default(null),
+  sourceLang: z.string(),
+  items: z.array(MenuItem),
+});</pre>
+
+  <div class="note">
+    <strong>Why this matters more than it looks.</strong> The JSON schema sent to
+    the model is <em>generated</em> from these definitions at runtime, not written
+    by hand. Change a field here and the model request follows automatically, so
+    the two can never drift apart.
+  </div>
+
+  <div class="foot"><span>SmartMenu handbook</span><span>11</span></div>
+</section>
+
+<!-- 12 ---------------------------------------------------------------- -->
+<section class="page">
+  <h2>Appendix B &middot; The prompt</h2>
+
+  <p>
+    The complete instruction sent with every photograph, from
+    <code>buildPrompt()</code> in <code>lib/llm.ts</code>. <code>{targetLang}</code>
+    is substituted from the user's preferences. This single prompt does OCR,
+    structuring, translation, ingredient inference, macro estimation and allergen
+    flagging in one pass.
+  </p>
+
+  <pre style="font-size: 7.4pt; line-height: 1.4;">You are reading a photograph of a restaurant menu.
+
+Return every dish you can read, in the order it appears on the menu.
+
+For each dish:
+- originalName: the dish name exactly as printed, including accents. Do not translate this field.
+- translatedName: a natural, appetising name in en. Translate the meaning, not word for word. &quot;Tagliata di Manzo con Rucola&quot; is &quot;Sliced Beef with Rocket&quot;, not &quot;Cut of Beef with Arugula&quot;.
+- section: the menu section this dish sits under, translated into en (for example &quot;Starters&quot;, &quot;First courses&quot;, &quot;Main courses&quot;, &quot;Desserts&quot;). If the menu has no sections, infer the most fitting one.
+- category: one of pasta, fish, meat, risotto, dessert, salad, other. Pick the closest.
+- ingredients: the main ingredients, in en. Include what the dish obviously contains even if the menu does not spell it out (carbonara contains egg and pork).
+- nutrition: your best estimate for one restaurant portion as served. calories in kcal, protein/carbs/fat in grams. A plate of pasta is 600-900 kcal, a green salad is 150-350, a grilled fish main is 350-550. Never return zeros.
+- flags: vegan, vegetarian, glutenFree, containsNuts. Be careful and be strict:
+  - wheat pasta, bread, breaded or battered dishes and most desserts are NOT glutenFree
+  - pesto contains pine nuts, so containsNuts is true; so are most pastries and anything with almonds or walnuts
+  - anything with cheese, butter, cream, egg, honey, fish or meat is NOT vegan
+  - anything with fish, shellfish or meat is NOT vegetarian
+- confidence: 0 to 1, how sure you are about this dish. Lower it when the text is blurry or the dish is unfamiliar.
+
+Also return:
+- sourceLang: the language the menu is written in, as a short code such as &quot;it&quot;, &quot;fr&quot;, &quot;es&quot;.
+- isMenu: true if this image really is a food or drink menu.
+- rejectionReason: null when isMenu is true. When the image is not a menu, set isMenu to false, return an empty items array, and put one short friendly sentence here describing what you actually see, such as &quot;This looks like a photo of a person, not a menu.&quot;
+
+Return at most 20 dishes. If the menu lists more than that, return the
+first 20 in the order they appear and stop.
+
+Read only what is on the menu. Do not invent dishes that are not there.</pre>
+
+  <div class="foot"><span>SmartMenu handbook</span><span>12</span></div>
+</section>
+
+<!-- 13 ---------------------------------------------------------------- -->
+<section class="page">
+  <h2>Appendix B &middot; Notes on the prompt</h2>
+
+  <p>Four choices in there are worth being able to defend.</p>
+
+  <h3>Worked examples beat instructions</h3>
+  <p>
+    &ldquo;Translate naturally&rdquo; produces literal translations. One concrete example
+    &mdash; <em>&ldquo;Tagliata di Manzo con Rucola&rdquo; is &ldquo;Sliced Beef with Rocket&rdquo;, not
+    &ldquo;Cut of Beef with Arugula&rdquo;</em> &mdash; changes the register of every dish name in
+    the response. The same trick carries the allergen rules: naming pesto and
+    pine nuts explicitly is what makes the model catch the nut cases the menu
+    never mentions.
+  </p>
+
+  <h3>Calorie anchors, because the model has no scale</h3>
+  <p>
+    Without &ldquo;a plate of pasta is 600&ndash;900 kcal, a green salad is 150&ndash;350&rdquo;, the
+    estimates drift wildly between dishes on the same menu. The anchors are what
+    make the numbers comparable enough to rank. They are also backed up in code:
+    macros that fall out of range, or that do not add up to the stated calories,
+    are rejected and re-asked once.
+  </p>
+
+  <h3>The rejection path rides along</h3>
+  <p>
+    <code>isMenu</code> and <code>rejectionReason</code> are in the same response as
+    the dishes. A photo of a face or a receipt comes back as a friendly sentence
+    in one round trip &mdash; no second classifier call, no extra latency on the happy
+    path.
+  </p>
+
+  <h3>The cap is in the prompt, not just the code</h3>
+  <p>
+    We cap at 20 dishes either way, but asking for 20 rather than trimming 39
+    afterwards saves the generation time for 19 dishes we would throw away. That
+    single line took a 39-dish Spanish menu from a <strong>504 timeout</strong> to
+    <strong>20 dishes in 11 seconds</strong>.
+  </p>
+
+  <div class="note">
+    <strong>What is deliberately absent:</strong> nothing asks the model to score,
+    rank or advise. It reports what it sees. Every judgement is made afterwards,
+    in code we can read, test and explain.
+  </div>
+
+  <div class="foot"><span>SmartMenu handbook</span><span>13</span></div>
+</section>
