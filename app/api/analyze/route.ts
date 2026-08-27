@@ -9,7 +9,7 @@ import {
 import { AnalyzeRequest, type AnalyzeError } from "@/lib/schema";
 
 export const runtime = "nodejs";
-/** Vercel hobby allows 60s. We budget 25s inside analyzeMenu() and fail fast. */
+/** Vercel hobby allows 60s. analyzeMenu() budgets 40s and fails fast. */
 export const maxDuration = 60;
 
 /**
