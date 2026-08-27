@@ -5,6 +5,8 @@ import { useMenuStore } from "@/lib/store";
 
 export default function MenuPage() {
   const items = useMenuStore((state) => state.scored);
+  const isSampleData = useMenuStore((state) => state.isSampleData);
+  const sourceLang = useMenuStore((state) => state.analyzedMenu.sourceLang);
 
   return (
     <main
@@ -28,7 +30,9 @@ export default function MenuPage() {
       <div>
         <h1 style={{ margin: 0, fontSize: 32 }}>Best matches for you</h1>
         <p style={{ margin: "8px 0 0", color: "#8b93a3" }}>
-          Ranked from your preferences using fixture menu data.
+          {isSampleData
+            ? "This is our sample menu - scan a photo to rank a real one."
+            : `Read from your photo (${sourceLang.toUpperCase()}) and ranked for your preferences.`}
         </p>
       </div>
 
