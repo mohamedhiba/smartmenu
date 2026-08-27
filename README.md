@@ -7,9 +7,9 @@ A mobile-first React web app - open it on a phone, no install.
 
 **Live: https://smartmenu-two-ruddy.vercel.app**
 
-| Scan | Preferences | Processing |
-|---|---|---|
-| ![Scan](docs/screenshots/01-scan.png) | ![Preferences](docs/screenshots/02-preferences.png) | ![Processing](docs/screenshots/04-processing.png) |
+| Scan | Preferences |
+|---|---|
+| ![Scan](docs/screenshots/01-scan.png) | ![Preferences](docs/screenshots/02-preferences.png) |
 
 | Smart Menu | Dish details |
 |---|---|
