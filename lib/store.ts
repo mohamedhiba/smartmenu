@@ -89,10 +89,20 @@ export const useMenuStore = create<MenuStore>()(
             }),
           });
 
-          const payload = await response.json();
+          // Not every failure comes back as our JSON. Vercel rejects a body
+          // over 4.5MB itself, before our code runs, with plain text - so fall
+          // back to reading the status rather than throwing on the parse.
+          let payload: { code?: ErrorCode } | null = null;
+          try {
+            payload = await response.json();
+          } catch {
+            payload = null;
+          }
 
           if (!response.ok) {
-            const code = (payload?.code as ErrorCode) ?? "upstream_failed";
+            const code =
+              payload?.code ??
+              (response.status === 413 ? "image_too_large" : "upstream_failed");
             // A rejected photo is not a crash - keep the previous menu on screen
             // and say why, rather than passing the demo menu off as their photo.
             set({
