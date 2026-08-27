@@ -15,13 +15,16 @@ const LABEL_CLASSES: Record<ScoreLabel, string> = {
 export type ScoreBadgeProps = {
   label: ScoreLabel;
   score: number;
+  /** #22: stagger the pop-in across a list - DishCard passes index * 60. */
+  delayMs?: number;
 };
 
-/** #16: teal / amber / red, readable at arm's length. */
-export default function ScoreBadge({ label, score }: ScoreBadgeProps) {
+/** #16 / #22: teal / amber / red, readable at arm's length, pops in on mount. */
+export default function ScoreBadge({ label, score, delayMs = 0 }: ScoreBadgeProps) {
   return (
     <span
-      className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold whitespace-nowrap ${LABEL_CLASSES[label]}`}
+      style={{ animationDelay: `${delayMs}ms` }}
+      className={`animate-badge-pop inline-flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold whitespace-nowrap ${LABEL_CLASSES[label]}`}
     >
       {LABEL_TEXT[label]} · {score}
     </span>

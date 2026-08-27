@@ -22,9 +22,9 @@ export default function SmartMenuScreen({ items, onSelect, onRescan }: SmartMenu
         <p className="text-muted py-12 text-center text-sm">No dishes found - try a clearer photo.</p>
       ) : (
         <ul className="space-y-3">
-          {items.map((item) => (
+          {items.map((item, index) => (
             <li key={item.id}>
-              <DishCard dish={item} onSelect={onSelect} />
+              <DishCard dish={item} onSelect={onSelect} index={index} />
             </li>
           ))}
         </ul>

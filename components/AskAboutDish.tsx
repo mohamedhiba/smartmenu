@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Send, Sparkles } from "lucide-react";
+import { Send, Sparkles } from "lucide-react";
 import type { AskAboutDishProps } from "./types";
+import Chip from "./ui/Chip";
+import Skeleton from "./ui/Skeleton";
 
 type Turn = { question: string; answer: string };
 
@@ -12,14 +14,17 @@ const SUGGESTIONS = ["Is this spicy?", "Can they make it without cheese?", "Any 
 export default function AskAboutDish({ dish }: AskAboutDishProps) {
   const [question, setQuestion] = useState("");
   const [turns, setTurns] = useState<Turn[]>([]);
-  const [busy, setBusy] = useState(false);
+  const [pendingQuestion, setPendingQuestion] = useState<string>();
   const [error, setError] = useState<string>();
+
+  const busy = pendingQuestion !== undefined;
 
   async function ask(raw: string) {
     const trimmed = raw.trim();
     if (!trimmed || busy) return;
 
-    setBusy(true);
+    setPendingQuestion(trimmed);
+    setQuestion("");
     setError(undefined);
     try {
       const res = await fetch("/api/ask-dish", {
@@ -30,11 +35,11 @@ export default function AskAboutDish({ dish }: AskAboutDishProps) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Something went wrong.");
       setTurns((prev) => [...prev, { question: trimmed, answer: data.answer }]);
-      setQuestion("");
     } catch {
       setError("Couldn't get an answer - try again.");
+      setQuestion(trimmed);
     } finally {
-      setBusy(false);
+      setPendingQuestion(undefined);
     }
   }
 
@@ -45,14 +50,20 @@ export default function AskAboutDish({ dish }: AskAboutDishProps) {
         <h3 className="text-sm font-medium">Ask about this dish</h3>
       </div>
 
-      {turns.length > 0 && (
-        <ul className="space-y-2">
+      {(turns.length > 0 || pendingQuestion) && (
+        <ul className="space-y-3">
           {turns.map((turn, i) => (
             <li key={i} className="space-y-1">
               <p className="text-sm font-medium">{turn.question}</p>
               <p className="text-muted text-sm">{turn.answer}</p>
             </li>
           ))}
+          {pendingQuestion && (
+            <li className="space-y-1.5">
+              <p className="text-sm font-medium">{pendingQuestion}</p>
+              <Skeleton className="h-4 w-4/5" />
+            </li>
+          )}
         </ul>
       )}
 
@@ -60,15 +71,9 @@ export default function AskAboutDish({ dish }: AskAboutDishProps) {
 
       <div className="flex flex-wrap gap-2">
         {SUGGESTIONS.map((suggestion) => (
-          <button
-            key={suggestion}
-            type="button"
-            onClick={() => ask(suggestion)}
-            disabled={busy}
-            className="bg-surface-2 border-border text-muted rounded-full border px-3 py-1.5 text-xs disabled:opacity-50"
-          >
+          <Chip key={suggestion} onClick={() => ask(suggestion)} disabled={busy} className="text-xs">
             {suggestion}
-          </button>
+          </Chip>
         ))}
       </div>
 
@@ -85,15 +90,15 @@ export default function AskAboutDish({ dish }: AskAboutDishProps) {
           placeholder="e.g. is this spicy?"
           disabled={busy}
           maxLength={300}
-          className="bg-surface-2 border-border text-text placeholder:text-muted min-w-0 flex-1 rounded-full border px-4 py-2 text-sm outline-none"
+          className="bg-surface-2 border-border text-text placeholder:text-muted min-h-11 min-w-0 flex-1 rounded-full border px-4 text-sm outline-none"
         />
         <button
           type="submit"
           disabled={busy || !question.trim()}
           aria-label="Ask"
-          className="bg-accent text-accent-ink rounded-full p-2 disabled:opacity-50"
+          className="bg-accent text-accent-ink flex size-11 shrink-0 items-center justify-center rounded-full disabled:opacity-50"
         >
-          {busy ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+          <Send size={18} className={busy ? "animate-pulse" : undefined} />
         </button>
       </form>
     </section>

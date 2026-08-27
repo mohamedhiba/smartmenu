@@ -8,10 +8,12 @@ import type { Scored } from "@/lib/schema";
 export type DishCardProps = {
   dish: Scored;
   onSelect: (id: string) => void;
+  /** #22: position in the list, staggers the ScoreBadge pop-in. */
+  index?: number;
 };
 
 /** #16: CategoryTile, translated name over original, kcal, score badge, reason chips. */
-export default function DishCard({ dish, onSelect }: DishCardProps) {
+export default function DishCard({ dish, onSelect, index = 0 }: DishCardProps) {
   return (
     <button
       type="button"
@@ -25,7 +27,7 @@ export default function DishCard({ dish, onSelect }: DishCardProps) {
             <p className="truncate text-sm font-medium">{dish.translatedName}</p>
             <p className="text-muted truncate text-xs">{dish.originalName}</p>
           </div>
-          <ScoreBadge label={dish.label} score={dish.score} />
+          <ScoreBadge label={dish.label} score={dish.score} delayMs={index * 60} />
         </div>
         <p className="text-muted text-xs">{dish.nutrition.calories} kcal</p>
         {dish.reasons.length > 0 && (
