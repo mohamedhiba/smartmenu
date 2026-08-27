@@ -126,7 +126,10 @@ export function scoreDish(item: MenuItem, prefs: Prefs): Scored {
   // Without this, whole groups of dishes land on the same round number and the
   // ranked list looks arbitrary. Protein per 100 kcal is a reasonable, honest
   // tiebreak: it separates a lean fish from a rich one without changing labels.
-  score += clamp(proteinDensity(item), 0, 6);
+  //
+  // Scaled rather than clamped straight: most real dishes sit above 6g/100kcal,
+  // so clamping there saturated and five dishes in a row still read "86".
+  score += clamp(proteinDensity(item) * 0.4, 0, 8);
 
   // A dish that breaks the diet or the allergy can never be better than "limit".
   const blocked = Boolean(violation) || nutConflict;

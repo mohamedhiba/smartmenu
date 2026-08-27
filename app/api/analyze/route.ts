@@ -79,7 +79,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json(menu);
   } catch (error) {
-    // TODO(#19): try OpenAI before giving up.
     if (error instanceof AnalyzeTimeoutError) {
       console.error("[analyze]", error.message);
       return fail("timeout", "That took too long. Try once more.", 504);
