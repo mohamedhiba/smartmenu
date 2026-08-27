@@ -52,3 +52,16 @@ body {
   flex-direction: column;
   padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom);
 }
+
+/* #15: indeterminate sweep for ProcessingScreen's current-stage bar - keeps it looking alive even if a stage sits for 10s. */
+@keyframes shimmer-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(400%);
+  }
+}
+.animate-shimmer-sweep {
+  animation: shimmer-sweep 1.4s ease-in-out infinite;
+}
