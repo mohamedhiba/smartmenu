@@ -19,7 +19,7 @@ export default function MenuPage() {
       }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <Link href="/processing" style={{ color: "#8b93a3", textDecoration: "none" }}>
+        <Link href="/processing" style={{ color: "#8b93a3", textDecoration: "none", display: "inline-flex", alignItems: "center", minHeight: 44, paddingRight: 12 }}>
           ← Back
         </Link>
         <span style={{ color: "#8b93a3", fontSize: 12, letterSpacing: 1.2, textTransform: "uppercase" }}>
@@ -35,6 +35,31 @@ export default function MenuPage() {
             : `Read from your photo (${sourceLang.toUpperCase()}) and ranked for your preferences.`}
         </p>
       </div>
+
+      {items.length === 0 ? (
+        <div
+          style={{
+            border: "1px solid #262a33",
+            borderRadius: 16,
+            background: "#16181d",
+            padding: 20,
+            display: "grid",
+            gap: 14,
+          }}
+        >
+          <p style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>No dishes to show</p>
+          <p style={{ margin: 0, color: "#8b93a3", lineHeight: 1.5 }}>
+            We could not read any dishes from that photo. Try again with the whole
+            menu in frame and the text in focus.
+          </p>
+          <Link
+            href="/"
+            style={{ background: "#14b8a6", color: "#04231f", borderRadius: 14, padding: "14px 18px", textAlign: "center", fontWeight: 600, textDecoration: "none" }}
+          >
+            Scan another menu
+          </Link>
+        </div>
+      ) : null}
 
       <div style={{ display: "grid", gap: 12 }}>
         {items.map((item) => (
