@@ -47,6 +47,3 @@ next-env.d.ts
 .idea/
 .vscode/
 *.swp
-
-# agent scratch files
-CLAUDE.md
