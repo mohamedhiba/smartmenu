@@ -1,3 +1,5 @@
+"use client";
+
 import type { PrefsScreenProps } from "@/components/types";
 import { DIETS, type Diet } from "@/lib/schema";
 import Chip from "@/components/ui/Chip";
