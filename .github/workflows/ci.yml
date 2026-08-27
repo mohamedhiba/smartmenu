@@ -17,6 +17,9 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # Next 16 generates the route types (LayoutProps, PageProps) that tsc
+      # needs. On a clean checkout they do not exist yet.
+      - run: npx next typegen
       - run: npx tsc --noEmit
       - run: npm run lint
       - run: npm run build
