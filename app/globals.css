@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+/**
+ * SmartMenu design tokens. Dark-only by design (matches the mock).
+ * Abigail owns this file. Tailwind v4 is CSS-first: tokens declared here
+ * become utilities automatically, e.g. --color-surface -> bg-surface.
+ */
+@theme {
+  --color-bg: #0a0b0d;
+  --color-surface: #16181d;
+  --color-surface-2: #1e2128;
+  --color-border: #262a33;
+
+  --color-text: #f2f4f7;
+  --color-muted: #8b93a3;
+
+  /* Score labels. Keep these three in sync with ScoreLabel in lib/schema.ts. */
+  --color-recommended: #14b8a6;
+  --color-good: #f59e0b;
+  --color-limit: #ef4444;
+
+  --color-accent: #14b8a6;
+  --color-accent-ink: #04231f;
+
+  --radius-card: 16px;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+body {
+  font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  /* Stops iOS Safari from zooming the page when an input is focused. */
+  touch-action: manipulation;
+}
+
+/* Mobile-first shell. Every screen renders inside this. Target width: 375px. */
+.app-shell {
+  width: 100%;
+  max-width: 480px;
+  margin-inline: auto;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom);
+}

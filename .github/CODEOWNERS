@@ -1,0 +1,14 @@
+# Advisory only - reviews are not required to merge. This exists so GitHub
+# shows the right person on a PR and so conflicts are obvious early.
+
+/components/       @AbigailVincent
+/app/globals.css   @AbigailVincent
+
+/app/api/          @mohamedhiba
+/lib/llm.ts        @mohamedhiba
+/lib/schema.ts     @mohamedhiba
+/lib/fixtures.ts   @mohamedhiba
+
+/lib/store.ts      @IIBrandonII
+/lib/scoring.ts    @IIBrandonII
+/lib/image.ts      @IIBrandonII
