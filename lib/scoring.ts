@@ -49,6 +49,28 @@ function dietViolation(item: MenuItem, prefs: Prefs): string | null {
   }
 }
 
+/**
+ * How badly a dish breaks the rule, 0 (barely) to 1 (hopelessly).
+ *
+ * Keto has a natural gradient - carbs over the limit. The other diets are
+ * binary, so there is no honest gradient to read; calorie load is used purely
+ * as a tiebreak, to keep the list ordered rather than flat.
+ */
+function violationSeverity(
+  item: MenuItem,
+  prefs: Prefs,
+  nutConflict: boolean,
+): number {
+  // An allergy is not a spectrum. Nut dishes sink to the bottom.
+  if (nutConflict) return 1;
+
+  if (prefs.diet === "keto") {
+    return clamp((item.nutrition.carbs - KETO_CARB_LIMIT) / 60, 0.05, 1);
+  }
+
+  return clamp(0.35 + item.nutrition.calories / 2500, 0.35, 1);
+}
+
 /** Grams of protein per 100 kcal. Small, deterministic, always non-negative. */
 function proteinDensity(item: MenuItem): number {
   const calories = Math.max(item.nutrition.calories, 1);
@@ -108,7 +130,15 @@ export function scoreDish(item: MenuItem, prefs: Prefs): Scored {
 
   // A dish that breaks the diet or the allergy can never be better than "limit".
   const blocked = Boolean(violation) || nutConflict;
-  const finalScore = blocked ? Math.min(score, 35) : clamp(score, 20, 100);
+
+  // But blocked dishes still have to rank against each other. On a menu where
+  // nothing fits the diet, flattening every dish to the same number produces a
+  // wall of identical red cards in arbitrary order - which is worse than
+  // useless, because the dish closest to acceptable gets buried. Spread them
+  // across the band below "limit" by how badly they break the rule.
+  const finalScore = blocked
+    ? clamp(Math.round(34 - 30 * violationSeverity(item, prefs, nutConflict)), 1, 34)
+    : clamp(score, 20, 100);
 
   const label: Scored["label"] = blocked
     ? "limit"
