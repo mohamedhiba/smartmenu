@@ -1,8 +1,8 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, ThinkingLevel } from "@google/genai";
 import { z } from "zod";
 import { AnalyzedMenu, MenuItem, type Prefs } from "./schema";
 
-export const GEMINI_MODEL = "gemini-2.5-flash";
+export const GEMINI_MODEL = "gemini-3.6-flash";
 
 /**
  * What we ask the model for: the contract minus `id`.
@@ -115,7 +115,7 @@ function geminiKeys(): string[] {
 /**
  * Where to start in the key list. Rotating the starting point spreads load
  * instead of hammering key 1 until it 429s, which matters because the free
- * tier is roughly 10 requests per minute per key and three of us are testing.
+ * tier rate-limits per key and three of us are testing.
  */
 let cursor = 0;
 
@@ -196,8 +196,10 @@ async function callGemini(
     config: {
       responseMimeType: "application/json",
       responseJsonSchema: MENU_RESPONSE_SCHEMA,
-      // The menu is in the image; there is nothing to reason about at length.
-      thinkingConfig: { thinkingBudget: 0 },
+      // The menu is in the image; there is little to reason about at length.
+      // Default thinking costs ~21s on a printed menu, LOW gets the same answer
+      // in ~9s. Gemini 3.x replaced thinkingBudget with thinkingLevel.
+      thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
     },
   });
 

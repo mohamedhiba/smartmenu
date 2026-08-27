@@ -38,7 +38,7 @@ that has to fuzzy-match "Trofie al Pesto Genovese" against a database keyed on
 "pasta, cooked". That last step alone is a research project.
 
 **We collapsed stages 1-4 into a single multimodal call.** One request to
-`gemini-2.5-flash` returns structured JSON that has already done the OCR, the
+`gemini-3.6-flash` returns structured JSON that has already done the OCR, the
 structuring, the translation, the ingredient inference and the macro estimation:
 
 ```
@@ -83,7 +83,7 @@ That split is intentional and worth saying out loud.
   POST /api/analyze       { imageBase64, mimeType, prefs }
       |
       v
-  lib/llm.ts              one gemini-2.5-flash call
+  lib/llm.ts              one gemini-3.6-flash call
       |                   - schema derived from lib/schema.ts
       |                   - rotates across 3 keys on rate limit
       v
@@ -124,8 +124,8 @@ slugify the original name and de-duplicate with a suffix, so
 `Bruschetta al Pomodoro` is always `bruschetta-al-pomodoro`. Deterministic, and
 it saves tokens.
 
-**"What happens when you hit the free tier limit?"** Gemini's free tier is roughly
-10 requests per minute per key. We run three keys and rotate across them, and the
+**"What happens when you hit the free tier limit?"** Gemini's free tier rate-limits
+each key. We run three keys and rotate across them, and the
 rotation *starts from a moving offset* so load spreads instead of draining key 1
 first. We only rotate on failures another key could survive - quota, rate limit,
 5xx - and fail fast on a malformed request, because retrying bad input on two more
@@ -213,18 +213,29 @@ Be straight about this. Judges respond better to an honest status than a bluff.
 | `lib/schema.ts` + `components/types.ts` contracts | **Done** |
 | `lib/fixtures.ts` 8-dish demo menu | **Done** |
 | `/api/analyze` + `?demo=1` short-circuit | **Done** |
-| `lib/llm.ts` Gemini call, schema generation, key rotation | **Written, awaiting first live test** |
+| `lib/llm.ts` Gemini call, schema generation, key rotation | **Done - verified live** |
 | Design system, five screens | In progress - #7, #8, #10, #15, #16, #21 |
 | `lib/image.ts` downscale | Open - #9 |
 | `lib/scoring.ts` | Open - #13 |
 | `lib/store.ts` | Open - #11 |
 | Vercel deploy | Open - #14 |
+| Non-menu rejection (server side) | **Done** - #20 needs only the UI message |
 | Timeout, retry, item caps | Open - #18 |
 | OpenAI cross-provider fallback | Open - #19 |
 
-Right now `main` has one placeholder page. **There is no working end-to-end demo
-yet** - the pipeline has not made its first live call. Until #17 lands, what you
-can show is the architecture and the code, not the product.
+**Verified on a real call** (printed Italian menu, 12 dishes): all 12 read, language
+detected as `it`, translations natural ("Tagliata di Manzo con Rucola" ->
+"Sliced Beef with Rocket"), and every allergen trap correct - pesto flagged as
+containing nuts, carbonara and fried calamari both flagged as not gluten-free,
+sea bass estimated at 420 kcal / 2g carbs. Round trip takes 10-12 seconds against
+a 25 second budget. A photo that is not a menu comes back as a 422 with a plain
+English reason rather than an error.
+
+What is missing is the front end. `main` still has one placeholder page, so
+**there is no clickable end-to-end demo yet** - the pipeline is proven, but you
+reach it with curl, not with a phone. That changes when #17 wires the screens to
+the endpoint. Until then, what you can show is the architecture, the code, and a
+live API call - not the product.
 
 ---
 
